@@ -134,4 +134,32 @@ android/app/build/outputs/apk/debug/app-debug.apk
 npx cap open android
 ```
 
-In Android Studio: Select a device/emulator from the dropdown and click the Run button (green play icon)    
+In Android Studio: Select a device/emulator from the dropdown and click the Run button (green play icon)
+
+---
+
+## How to Change the App ID
+
+A script is provided to update the app ID across all required files automatically.
+
+```bash
+node scripts/update-app-id.js com.your.new.id
+```
+
+This will update the following files in one shot and run `npx cap sync android` at the end:
+
+| File | What changes |
+|---|---|
+| `capacitor.config.ts` | `appId` |
+| `android/app/build.gradle` | `namespace` + `applicationId` |
+| `android/app/src/main/assets/capacitor.config.json` | `appId` |
+| `android/app/src/main/res/values/strings.xml` | `package_name` + `custom_url_scheme` |
+| `android/app/src/main/java/...` | Moves all `.java` files to the new package path + updates `package` declaration |
+
+If anything fails mid-run, all file changes are rolled back automatically.
+
+### Play Console Warning
+
+> **The first AAB you upload to Play Console permanently locks the signing keystore for that app ID. Never change the keystore after the first upload.**
+
+If you changed the keystore and got rejected by Play Console, the only fix is to register a new app ID and run the script above with the new ID.

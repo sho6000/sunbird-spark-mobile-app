@@ -68,10 +68,6 @@
 		"classpath": "com.getcursor.plugins.zip.ZipPlugin"
 	},
 	{
-		"pkg": "capacitor-read-native-setting",
-		"classpath": "com.ingageco.readnativesetting.CapacitorReadNativeSetting"
-	},
-	{
 		"pkg": "capacitor-secure-storage-plugin",
 		"classpath": "com.whitestein.securestorage.SecureStoragePluginPlugin"
 	}

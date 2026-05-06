@@ -1,5 +1,5 @@
 {
-	"appId": "org.sunbird.app",
+	"appId": "org.sunbird.spark.app",
 	"appName": "Sunbird Spark App",
 	"webDir": "dist",
 	"plugins": {

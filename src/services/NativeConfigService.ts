@@ -1,4 +1,10 @@
-import { CapacitorReadNativeSetting } from 'capacitor-read-native-setting';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+const PLUGIN_NAME = 'NativeSetting';
+
+const NativeSetting = registerPlugin<{
+  read(options: { key: string }): Promise<{ value: string | undefined }>;
+}>(PLUGIN_NAME);
 
 export type NativeConfig = {
   baseUrl: string;
@@ -9,48 +15,51 @@ export type NativeConfig = {
   appVersion: string;
 };
 
+const EMPTY_CONFIG: NativeConfig = {
+  baseUrl: '',
+  mobileAppConsumer: '',
+  mobileAppKey: '',
+  mobileAppSecret: '',
+  producerId: '',
+  appVersion: '',
+};
+
 class NativeConfigService {
   private config: NativeConfig | null = null;
+  private loadPromise: Promise<NativeConfig> | null = null;
 
-  /**
-   * Loads config from native Android resources (generated via gradle resValue)
-   * Caches result so we don't hit the plugin multiple times
-   */
   async load(): Promise<NativeConfig> {
-    if (this.config) {
-      return this.config;
+    if (this.config) return this.config;
+    if (this.loadPromise) return this.loadPromise;
+
+    this.loadPromise = this.doLoad();
+    return this.loadPromise;
+  }
+
+  private async doLoad(): Promise<NativeConfig> {
+    if (Capacitor.getPlatform() !== 'android') {
+      return { ...EMPTY_CONFIG };
     }
 
     try {
-      const baseUrl = (await CapacitorReadNativeSetting.read({ key: 'base_url' })).value ?? '';
-      const mobileAppConsumer = (await CapacitorReadNativeSetting.read({ key: 'mobile_app_consumer' })).value ?? '';
-      const mobileAppKey = (await CapacitorReadNativeSetting.read({ key: 'mobile_app_key' })).value ?? '';
-      const mobileAppSecret = (await CapacitorReadNativeSetting.read({ key: 'mobile_app_secret' })).value ?? '';
-      const producerId = (await CapacitorReadNativeSetting.read({ key: 'producer_id' })).value ?? '';
-      const appVersion = (await CapacitorReadNativeSetting.read({ key: 'app_version' })).value ?? '';
+      const [baseUrl, mobileAppConsumer, mobileAppKey, mobileAppSecret, producerId, appVersion] =
+        await Promise.all(
+          [
+            'base_url',
+            'mobile_app_consumer',
+            'mobile_app_key',
+            'mobile_app_secret',
+            'producer_id',
+            'app_version',
+          ].map((key) => NativeSetting.read({ key }).then((r) => r.value ?? '')),
+        );
 
-      this.config = {
-        baseUrl,
-        mobileAppConsumer,
-        mobileAppKey,
-        mobileAppSecret,
-        producerId,
-        appVersion,
-      };
-
+      this.config = { baseUrl, mobileAppConsumer, mobileAppKey, mobileAppSecret, producerId, appVersion };
       return this.config;
     } catch (error) {
-      // Fallback to empty values so app doesn't crash
-      this.config = {
-        baseUrl: '',
-        mobileAppConsumer: '',
-        mobileAppKey: '',
-        mobileAppSecret: '',
-        producerId: '',
-        appVersion: '',
-      };
-
-      return this.config;
+      console.error('[NativeConfigService] Failed to load config:', error);
+      this.loadPromise = null;
+      return { ...EMPTY_CONFIG };
     }
   }
 }

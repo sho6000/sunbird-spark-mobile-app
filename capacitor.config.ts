@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'org.sunbird.app',
+  appId: 'org.sunbird.spark.app',
   appName: 'Sunbird Spark App',
   webDir: 'dist',
   plugins: {

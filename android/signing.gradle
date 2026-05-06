@@ -1,0 +1,34 @@
+def configFile = rootProject.file('signing.properties')
+def props = new Properties()
+if (configFile.canRead()) {
+    configFile.withInputStream { props.load(it) }
+
+    def requiredKeys = [
+        'KEYSTORE',
+        'SIGNING_STORE_PASSWORD',
+        'SIGNING_KEY_ALIAS',
+        'SIGNING_KEY_PASSWORD',
+    ]
+    def missingKeys = requiredKeys.findAll { !props[it]?.toString()?.trim() }
+    if (!missingKeys.isEmpty()) {
+        throw new GradleException("Missing required signing.properties entries: ${missingKeys.join(', ')}")
+    }
+
+    android.signingConfigs.release.storeFile file(props['KEYSTORE'])
+    android.signingConfigs.release.storePassword props['SIGNING_STORE_PASSWORD']
+    android.signingConfigs.release.keyAlias props['SIGNING_KEY_ALIAS']
+    android.signingConfigs.release.keyPassword props['SIGNING_KEY_PASSWORD']
+    android.buildTypes.release.signingConfig android.signingConfigs.release
+} else {
+    def storePassword = System.getenv('SIGNING_STORE_PASSWORD')
+    def keyAlias = System.getenv('SIGNING_KEY_ALIAS')
+    def keyPassword = System.getenv('SIGNING_KEY_PASSWORD')
+
+    if (storePassword && keyAlias && keyPassword) {
+        android.signingConfigs.release.storeFile file('keystore/android_keystore.jks')
+        android.signingConfigs.release.storePassword storePassword
+        android.signingConfigs.release.keyAlias keyAlias
+        android.signingConfigs.release.keyPassword keyPassword
+        android.buildTypes.release.signingConfig android.signingConfigs.release
+    }
+}

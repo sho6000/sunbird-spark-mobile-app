@@ -1,0 +1,58 @@
+name: Dependency Submission
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: write
+
+jobs:
+  dependency-submission-npm:
+    name: Submit npm Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Submit npm Dependencies
+        uses: advanced-security/spdx-dependency-submission-action@v0.2.0
+        with:
+          filePath: .
+          filePattern: sbom.spdx.json
+
+  dependency-submission-gradle:
+    name: Submit Gradle Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Make gradlew executable
+        run: chmod +x android/gradlew
+
+      - name: Submit Gradle Dependencies
+        uses: gradle/actions/dependency-submission@v4
+        with:
+          build-scan-publish: false
+          build-root-directory: android
