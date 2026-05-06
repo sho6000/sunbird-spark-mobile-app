@@ -44,8 +44,14 @@ class NativeConfigService {
     try {
       const [baseUrl, mobileAppConsumer, mobileAppKey, mobileAppSecret, producerId, appVersion] =
         await Promise.all(
-          ['base_url', 'mobile_app_consumer', 'mobile_app_key', 'mobile_app_secret', 'producer_id', 'app_version']
-            .map(key => NativeSetting.read({ key }).then(r => r.value ?? ''))
+          [
+            'base_url',
+            'mobile_app_consumer',
+            'mobile_app_key',
+            'mobile_app_secret',
+            'producer_id',
+            'app_version',
+          ].map((key) => NativeSetting.read({ key }).then((r) => r.value ?? '')),
         );
 
       this.config = { baseUrl, mobileAppConsumer, mobileAppKey, mobileAppSecret, producerId, appVersion };
