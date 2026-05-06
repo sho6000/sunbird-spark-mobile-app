@@ -16,12 +16,12 @@ android {
         def PRODUCER_ID = project.findProperty("producer_id") ?: ""
         def APP_VERSION = project.findProperty('app_version') ?: ""
 
-        resValue "string", "base_url", "\"${BASE_URL}\""
-        resValue "string", "mobile_app_consumer", "\"${MOBILE_APP_CONSUMER}\""
-        resValue "string", "mobile_app_key", "\"${MOBILE_APP_KEY}\""
-        resValue "string", "mobile_app_secret", "\"${MOBILE_APP_SECRET}\""
-        resValue "string", "producer_id", "\"${PRODUCER_ID}\""
-        resValue "string", "app_version", "\"${APP_VERSION}\""
+        resValue "string", "base_url", "${BASE_URL}"
+        resValue "string", "mobile_app_consumer", "${MOBILE_APP_CONSUMER}"
+        resValue "string", "mobile_app_key", "${MOBILE_APP_KEY}"
+        resValue "string", "mobile_app_secret", "${MOBILE_APP_SECRET}"
+        resValue "string", "producer_id", "${PRODUCER_ID}"
+        resValue "string", "app_version", "${APP_VERSION}"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {

@@ -53,8 +53,5 @@ project(':capgo-capacitor-social-login').projectDir = new File('../node_modules/
 include ':capa-zip'
 project(':capa-zip').projectDir = new File('../node_modules/capa-zip/android')
 
-include ':capacitor-read-native-setting'
-project(':capacitor-read-native-setting').projectDir = new File('../node_modules/capacitor-read-native-setting/android')
-
 include ':capacitor-secure-storage-plugin'
 project(':capacitor-secure-storage-plugin').projectDir = new File('../node_modules/capacitor-secure-storage-plugin/android')

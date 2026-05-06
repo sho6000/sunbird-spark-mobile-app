@@ -1,14 +1,14 @@
 {
-  "appId": "org.sunbird.spark.app",
-  "appName": "Sunbird Spark App",
-  "webDir": "dist",
-  "plugins": {
-    "CapacitorHttp": {
-      "enabled": false
-    },
-    "StatusBar": {
-      "style": "LIGHT",
-      "overlaysWebView": true
-    }
-  }
+	"appId": "org.sunbird.spark.app",
+	"appName": "Sunbird Spark App",
+	"webDir": "dist",
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": false
+		},
+		"StatusBar": {
+			"style": "LIGHT",
+			"overlaysWebView": true
+		}
+	}
 }

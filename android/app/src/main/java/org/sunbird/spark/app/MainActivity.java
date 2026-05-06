@@ -28,9 +28,10 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        registerPlugin(NativeSettingPlugin.class);
         super.onCreate(savedInstanceState);
 
-        String baseUrl = getString(R.string.base_url).replace("\"", "");
+        String baseUrl = getString(R.string.base_url);
 
         getBridge().setWebViewClient(new BridgeWebViewClient(getBridge()) {
             @Override
