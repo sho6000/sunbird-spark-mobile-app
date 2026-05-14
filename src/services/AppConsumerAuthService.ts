@@ -130,7 +130,7 @@ export class AppConsumerAuthService {
     const expiry = now + (24 * 60 * 60); // 24 hours from now
 
     const token = await new SignJWT({})
-      .setProtectedHeader({ alg: 'HS256' })
+      .setProtectedHeader({ alg: 'HS256', kid: this.mobileAppKey })
       .setIssuer(this.mobileAppKey)
       .setSubject(this.mobileAppConsumer)
       .setIssuedAt(now)
@@ -177,8 +177,8 @@ export class AppConsumerAuthService {
         const expiry = now + (24 * 60 * 60); // 24 hours from now
 
         const deviceJwt = await new SignJWT({})
-          .setProtectedHeader({ alg: 'HS256' })
-          .setIssuer(this.mobileAppKey)
+          .setProtectedHeader({ alg: 'HS256', kid: deviceId })
+          .setIssuer(deviceId)
           .setSubject(deviceId)
           .setIssuedAt(now)
           .setExpirationTime(expiry)
@@ -188,9 +188,18 @@ export class AppConsumerAuthService {
       } else {
         throw new Error('Device registration failed: No secret received from Kong');
       }
-    } catch (error) {
-      console.error('Device registration failed:', error);
-      throw new Error(`Device registration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } catch (error: any) {
+      const status = error?.status;
+      const body = error?.data;
+      console.error('Device registration failed:', { status, body, error });
+      const detail =
+        body?.message ||
+        body?.error ||
+        (typeof body === 'string' ? body : body ? JSON.stringify(body) : undefined) ||
+        (error instanceof Error ? error.message : undefined);
+      throw new Error(
+        `Device registration failed (status ${status ?? 'unknown'}): ${detail ?? 'no body'}`,
+      );
     }
   }
 
@@ -222,8 +231,12 @@ export class AppConsumerAuthService {
       });
 
       return this.deviceJwt;
-    } catch (error) {
-      console.error('Failed to get device JWT, falling back to app JWT:', error);
+    } catch (error: any) {
+      console.error(
+        'Failed to get device JWT, falling back to app JWT:',
+        error instanceof Error ? error.message : error,
+        error,
+      );
       
       // Fallback to app JWT if device registration fails
       if (!this.appJwt) {
