@@ -143,11 +143,15 @@ export const useDeleteAccount = (
   // ── executeDelete (internal) ─────────────────────────────────────────────────
   const executeDelete = useCallback(async (): Promise<void> => {
     if (!mountedRef.current) return;
+    if (!userId) {
+      if (mountedRef.current) setPageError(t('deleteAccountFailed'));
+      return;
+    }
     setIsDeleting(true);
     setPageError(null);
 
     try {
-      await userService.deleteUser(userId!);
+      await userService.deleteUser(userId);
 
       try {
         await userService.clearAccount();
