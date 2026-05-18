@@ -78,7 +78,6 @@ const DeleteAccountBody: React.FC = () => {
             return;
         }
         if (roles.includes('ORG_ADMIN')) {
-            setToastMessage(t('deleteAccountAdminBlocked'));
             routerRef.current.push('/profile', 'back', 'pop');
         }
     }, [isAuthenticated, roles, t]);
