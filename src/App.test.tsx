@@ -184,6 +184,10 @@ vi.mock('./pages/SettingsPage', () => ({
   default: () => <div data-testid="settings-page">Settings Page</div>,
 }));
 
+vi.mock('./pages/DeleteAccountPage', () => ({
+  default: () => <div data-testid="delete-account-page">Delete Account Page</div>,
+}));
+
 vi.mock('./components/common/BackButtonHandler', () => ({
   default: () => null,
 }));

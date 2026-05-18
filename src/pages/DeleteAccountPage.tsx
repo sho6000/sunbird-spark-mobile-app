@@ -66,6 +66,8 @@ const DeleteAccountBody: React.FC = () => {
         return Array.from(roleSet);
     }, [profile]);
 
+    const [toastMessage, setToastMessage] = React.useState('');
+
     const routerRef = useRef(router);
     useEffect(() => { routerRef.current = router; });
 
@@ -115,7 +117,6 @@ const DeleteAccountBody: React.FC = () => {
         confirmDirectDelete,
     } = useDeleteAccount(userId, profile, triggerCaptcha);
 
-    const [toastMessage, setToastMessage] = React.useState('');
     const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
     // Surface acceptAllConditions and offline as toasts, others as inline errors
