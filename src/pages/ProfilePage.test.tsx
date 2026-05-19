@@ -22,6 +22,11 @@ vi.mock('@ionic/react', () => ({
 vi.mock('ionicons/icons', () => ({
   chevronForwardOutline: 'chevron-forward',
   logOutOutline: 'log-out',
+  trashOutline: 'trash',
+}));
+
+vi.mock('../hooks/useSystemSetting', () => ({
+  useSystemSetting: vi.fn().mockReturnValue({ data: null }),
 }));
 
 vi.mock('../components/layout/AppHeader', () => ({

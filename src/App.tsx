@@ -57,6 +57,7 @@ import TermsAndConditionsPage from './pages/TermsAndConditionsPage';
 import TermsOfUsePage from './pages/TermsOfUsePage';
 import ProfileLearningPage from './pages/ProfileLearningPage';
 import SettingsPage from './pages/SettingsPage';
+import DeleteAccountPage from './pages/DeleteAccountPage';
 import BackButtonHandler from './components/common/BackButtonHandler';
 
 setupIonicReact();
@@ -275,6 +276,9 @@ const App: React.FC = () => {
           </Route>
           <Route exact path="/profile/settings">
             <SettingsPage />
+          </Route>
+          <Route exact path="/profile/delete-account">
+            <DeleteAccountPage />
           </Route>
           <Route exact path="/support">
             <HelpAndSupportPage />

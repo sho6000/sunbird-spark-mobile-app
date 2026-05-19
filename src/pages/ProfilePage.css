@@ -13,3 +13,11 @@
 .profile-guest-actions {
   margin-top: 1rem;
 }
+
+.profile-delete-label {
+  color: var(--ion-color-danger) !important;
+}
+
+.profile-delete-icon {
+  color: var(--ion-color-danger) !important;
+}

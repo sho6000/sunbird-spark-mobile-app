@@ -12,7 +12,9 @@ import {
 import {
   chevronForwardOutline,
   logOutOutline,
+  trashOutline,
 } from 'ionicons/icons';
+import { useSystemSetting } from '../hooks/useSystemSetting';
 import { useTranslation } from 'react-i18next';
 import { useIonRouter } from '@ionic/react';
 import { useAuth } from '../contexts/AuthContext';
@@ -63,6 +65,13 @@ const ProfilePage: React.FC = () => {
     profile?.roles?.forEach(addRole);
     return Array.from(roleSet);
   }, [profile]);
+
+  const { data: deleteSettingData } = useSystemSetting('enableDeleteAccount');
+  const showDeleteAccountButton = useMemo(() => {
+    const value = (deleteSettingData?.data as any)?.response?.value;
+    const isAdmin = roles.includes('ORG_ADMIN');
+    return String(value).trim().toLowerCase() === 'true' && !isAdmin;
+  }, [deleteSettingData, roles]);
 
   const [showSyncWarning, setShowSyncWarning] = useState(false);
   const [isCheckingSync, setIsCheckingSync] = useState(false);
@@ -233,6 +242,18 @@ const ProfilePage: React.FC = () => {
               <IonLabel className="profile-action-label">{t('settings')}</IonLabel>
               <IonIcon icon={chevronForwardOutline} slot="end" className="profile-action-chevron" />
             </IonItem>
+
+            {showDeleteAccountButton && isAuthenticated && (
+              <IonItem
+                className="profile-action-item profile-delete-item"
+                button
+                detail={false}
+                onClick={() => router.push('/profile/delete-account', 'forward', 'push')}
+              >
+                <IonIcon icon={trashOutline} slot="start" className="profile-action-chevron profile-delete-icon" />
+                <IonLabel className="profile-action-label profile-delete-label">{t('deleteAccount')}</IonLabel>
+              </IonItem>
+            )}
 
             <IonItem className="profile-action-item" button detail={false} onClick={handleLogout} disabled={isCheckingSync}>
               <IonIcon icon={logOutOutline} slot="start" className="profile-action-chevron" />

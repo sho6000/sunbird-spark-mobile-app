@@ -31,6 +31,10 @@ const GoogleIcon: React.FC = () => (
 /** Map API/Google errors to i18n keys */
 const getLoginErrorKey = (err: unknown): string => {
   if (err instanceof Error) {
+    if (err.message === 'USER_ACCOUNT_DELETED') {
+      return 'signInPage.accountDeleted';
+    }
+
     const code = (err as any).code as string | undefined;
     const msg = err.message.toLowerCase();
 
@@ -190,13 +194,17 @@ const SignInPage: React.FC = () => {
       await loginWithGoogle();
     } catch (err) {
       if (!isGoogleCancelError(err)) {
-        const code = err instanceof Error ? (err as any).code : undefined;
-        if (code === 'USER_NAME_NOT_PRESENT') {
-          setError(t('signInPage.googleSecurityError'));
-        } else if (code === 'USER_ACCOUNT_BLOCKED') {
-          setError(t('signInPage.accountBlocked'));
+        if (err instanceof Error && err.message === 'USER_ACCOUNT_DELETED') {
+          setError(t('signInPage.accountDeleted'));
         } else {
-          setError(t('signInPage.googleSignInFailed'));
+          const code = err instanceof Error ? (err as any).code : undefined;
+          if (code === 'USER_NAME_NOT_PRESENT') {
+            setError(t('signInPage.googleSecurityError'));
+          } else if (code === 'USER_ACCOUNT_BLOCKED') {
+            setError(t('signInPage.accountBlocked'));
+          } else {
+            setError(t('signInPage.googleSignInFailed'));
+          }
         }
       }
     } finally {
