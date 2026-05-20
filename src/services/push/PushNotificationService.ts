@@ -45,7 +45,6 @@ class PushNotificationService {
     this.listeners.push(
       await PushNotifications.addListener('registration', async (token) => {
         await this.storeFcmToken(token.value);
-        console.log('[FCM token]', token.value);
         // Anonymous device registration (no user token yet)
         await this.registerDevice();
       }),
