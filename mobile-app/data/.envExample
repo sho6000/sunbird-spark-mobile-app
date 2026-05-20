@@ -1,0 +1,7 @@
+SUNBIRD_EMAIL=name@yopmail.com
+SUNBIRD_PASSWORD=pass
+SUNBIRD_USERNAME=name
+
+# Update only if required. Change only when the courses in the home page are more than 6.
+# This is required to avoid the stale element exception while clicking on the course in the home page.
+# MAX_COURSE=6
