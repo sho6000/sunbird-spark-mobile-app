@@ -28,7 +28,7 @@ vi.mock('../../lib/http-client', () => ({
 
 vi.mock('../device/deviceService', () => ({
   deviceService: {
-    getDeviceIdOnly: vi.fn().mockResolvedValue('device-abc'),
+    getHashedDeviceId: vi.fn().mockResolvedValue('hashed-device-abc'),
     getSpec: vi.fn().mockReturnValue({ os: 'android', make: 'Google Pixel', id: 'device-abc' }),
   },
 }));
@@ -36,12 +36,6 @@ vi.mock('../device/deviceService', () => ({
 vi.mock('../NativeConfigService', () => ({
   NativeConfigServiceInstance: {
     load: vi.fn().mockResolvedValue({ producerId: 'prod-001', baseUrl: '' }),
-  },
-}));
-
-vi.mock('../ChannelManager', () => ({
-  ChannelManager: {
-    getChannelId: vi.fn().mockReturnValue(null),
   },
 }));
 
@@ -138,12 +132,12 @@ describe('PushNotificationService', () => {
       expect(Preferences.set).toHaveBeenCalledWith({ key: 'FCM_TOKEN', value: 'fcm-token-xyz' });
     });
 
-    it('dispatches push:foreground event when foreground notification arrives', async () => {
+    it('dispatches push:received event with notification data when foreground notification arrives', async () => {
       vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
       vi.mocked(PushNotifications.requestPermissions).mockResolvedValue({ receive: 'granted' });
       vi.mocked(PushNotifications.register).mockResolvedValue(undefined);
 
-      let foregroundCallback: (() => void) | null = null;
+      let foregroundCallback: ((notification: any) => void) | null = null;
       vi.mocked(PushNotifications.addListener).mockImplementation((event: string, cb: any) => {
         if (event === 'pushNotificationReceived') foregroundCallback = cb;
         return Promise.resolve({ remove: vi.fn().mockResolvedValue(undefined) } as any);
@@ -151,11 +145,13 @@ describe('PushNotificationService', () => {
 
       const dispatchSpy = vi.spyOn(window, 'dispatchEvent');
       await pushNotificationService.init();
-      foregroundCallback!();
+      foregroundCallback!({ data: { id: 'notif-1', actionType: 'courseUpdate' } });
 
-      expect(dispatchSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ type: 'push:foreground' }),
-      );
+      const dispatched = dispatchSpy.mock.calls.find(
+        ([e]) => (e as CustomEvent).type === 'push:received',
+      )?.[0] as CustomEvent;
+      expect(dispatched).toBeDefined();
+      expect(dispatched.detail).toEqual({ id: 'notif-1', actionType: 'courseUpdate' });
     });
 
     it('dispatches push:tapped event with notification data when user taps from tray', async () => {
@@ -232,27 +228,77 @@ describe('PushNotificationService', () => {
       expect(mockPost).not.toHaveBeenCalled();
     });
 
-    it('calls POST /api/v3/device/register/:deviceId with correct payload', async () => {
+    it('calls POST /user/device/v1/register/:deviceId with the backend payload shape', async () => {
       vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
-      vi.mocked(Preferences.get).mockResolvedValue({ value: 'fcm-token-abc' });
+      vi.mocked(Preferences.get).mockImplementation(async ({ key }) => {
+        if (key === 'FCM_TOKEN') return { value: 'fcm-token-abc' };
+        return { value: null };
+      });
       mockPost.mockResolvedValue({});
 
       await pushNotificationService.registerDevice();
 
       expect(mockPost).toHaveBeenCalledWith(
-        '/api/v3/device/register/device-abc',
+        '/user/device/v1/register/hashed-device-abc',
         expect.objectContaining({
           request: expect.objectContaining({
             fcmToken: 'fcm-token-abc',
-            producer: 'prod-001',
+            producer_id: 'prod-001',
+            device_spec: expect.any(String),
+            uaspec: expect.any(String),
           }),
         }),
       );
+      const [, body] = mockPost.mock.calls[0];
+      // device_spec and uaspec must be stringified JSON, not nested objects
+      expect(JSON.parse(body.request.device_spec)).toMatchObject({ os: 'android', make: 'Google Pixel' });
+      expect(JSON.parse(body.request.uaspec)).toMatchObject({ agent: expect.any(String) });
+      // Fields the backend computes itself must not be sent
+      expect(body.request).not.toHaveProperty('first_access');
+      expect(body.request).not.toHaveProperty('api_last_updated_on');
+      // Stale / dropped fields must not leak back in
+      expect(body.request).not.toHaveProperty('channel');
+      expect(body.request).not.toHaveProperty('dspec');
+      expect(body.request).not.toHaveProperty('fcm_token');
+    });
+
+    it('skips the POST when the FCM token has not changed since the last registration', async () => {
+      vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
+      vi.mocked(Preferences.get).mockImplementation(async ({ key }) => {
+        if (key === 'FCM_TOKEN') return { value: 'fcm-token-abc' };
+        if (key === 'FCM_TOKEN_LAST_REGISTERED') return { value: 'fcm-token-abc' };
+        return { value: null };
+      });
+
+      await pushNotificationService.registerDevice();
+
+      expect(mockPost).not.toHaveBeenCalled();
+    });
+
+    it('dedupes concurrent calls into a single POST (single-flight)', async () => {
+      vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
+      vi.mocked(Preferences.get).mockImplementation(async ({ key }) => {
+        if (key === 'FCM_TOKEN') return { value: 'fcm-token-abc' };
+        return { value: null };
+      });
+      mockPost.mockResolvedValue({});
+
+      // Both calls fire synchronously — the second must join the first's
+      // in-flight promise rather than starting its own POST.
+      await Promise.all([
+        pushNotificationService.registerDevice(),
+        pushNotificationService.registerDevice(),
+      ]);
+
+      expect(mockPost).toHaveBeenCalledTimes(1);
     });
 
     it('does not throw when the API call fails', async () => {
       vi.mocked(Capacitor.isNativePlatform).mockReturnValue(true);
-      vi.mocked(Preferences.get).mockResolvedValue({ value: 'fcm-token-abc' });
+      vi.mocked(Preferences.get).mockImplementation(async ({ key }) => {
+        if (key === 'FCM_TOKEN') return { value: 'fcm-token-abc' };
+        return { value: null };
+      });
       mockPost.mockRejectedValue(new Error('network error'));
 
       await expect(pushNotificationService.registerDevice()).resolves.not.toThrow();

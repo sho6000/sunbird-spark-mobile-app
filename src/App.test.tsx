@@ -251,10 +251,11 @@ vi.mock('./components/common/PageLoader', () => ({
   default: () => <div data-testid="page-loader">Loading...</div>,
 }));
 
-// Mock notification hooks (used by AppHeader)
+// Mock notification hooks (used by AppHeader and PushNotificationGuard)
 vi.mock('./hooks/useNotifications', () => ({
   useNotificationRead: () => ({ notifications: [], isLoading: false, error: null, refetch: vi.fn() }),
   useNotificationGrouping: () => ({ groupedNotifications: [], unreadCount: 0 }),
+  useNotificationUpdate: () => ({ mutateAsync: vi.fn().mockResolvedValue(undefined) }),
 }));
 
 // Mock React Query — PushNotificationGuard uses useQueryClient

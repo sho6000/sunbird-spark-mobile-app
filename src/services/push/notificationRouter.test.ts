@@ -15,9 +15,9 @@ describe('routeNotification', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('navigates to /profile for certificateUpdate action type', () => {
+  it('navigates to /profile/learning for certificateUpdate action type', () => {
     routeNotification({ actionType: 'certificateUpdate' }, push);
-    expect(push).toHaveBeenCalledWith('/profile');
+    expect(push).toHaveBeenCalledWith('/profile/learning');
   });
 
   it('navigates to /content/:id for courseUpdate with identifier', () => {
@@ -83,7 +83,7 @@ describe('routeNotification', () => {
 
   it('reads actionType from action.type when actionType field is absent', () => {
     routeNotification({ action: { type: 'certificateUpdate' } }, push);
-    expect(push).toHaveBeenCalledWith('/profile');
+    expect(push).toHaveBeenCalledWith('/profile/learning');
   });
 
   it('reads additionalInfo from action.additionalInfo when actionData is absent', () => {
@@ -92,5 +92,42 @@ describe('routeNotification', () => {
       push,
     );
     expect(push).toHaveBeenCalledWith('/content/do_999');
+  });
+
+  // FCM's HTTP v1 API requires `data` values to be strings, so backend serialises
+  // actionData as JSON. These tests assert the router parses it transparently.
+  describe('actionData as stringified JSON (FCM wire format)', () => {
+    it('parses stringified actionData for courseUpdate', () => {
+      routeNotification(
+        { actionType: 'courseUpdate', actionData: '{"identifier":"do_str_123"}' },
+        push,
+      );
+      expect(push).toHaveBeenCalledWith('/content/do_str_123');
+    });
+
+    it('parses stringified actionData for extURL', () => {
+      routeNotification(
+        { actionType: 'extURL', actionData: '{"deepLink":"https://example.com"}' },
+        push,
+        openExternal,
+      );
+      expect(openExternal).toHaveBeenCalledWith('https://example.com');
+    });
+
+    it('parses stringified actionData for contentURL', () => {
+      routeNotification(
+        { actionType: 'contentURL', actionData: '{"contentURL":"/content/from-string"}' },
+        push,
+      );
+      expect(push).toHaveBeenCalledWith('/content/from-string');
+    });
+
+    it('treats malformed JSON actionData as empty (no crash, no navigation)', () => {
+      routeNotification(
+        { actionType: 'courseUpdate', actionData: 'not-json-at-all' },
+        push,
+      );
+      expect(push).not.toHaveBeenCalled();
+    });
   });
 });
