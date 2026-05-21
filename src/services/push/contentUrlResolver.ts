@@ -60,7 +60,6 @@ export function resolveContentUrl(rawUrl: string): ResolvedContentUrl {
     return { kind: 'ignored' };
   }
 
-  const pathAndQuery = parsed.pathname + parsed.search + parsed.hash;
   for (const { match, toPath } of INTERNAL_PATTERNS) {
     const m = parsed.pathname.match(match);
     if (m) {
@@ -71,5 +70,5 @@ export function resolveContentUrl(rawUrl: string): ResolvedContentUrl {
     }
   }
 
-  return { kind: 'external', url: pathAndQuery && parsed.toString() };
+  return { kind: 'external', url: parsed.toString() };
 }
