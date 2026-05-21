@@ -120,6 +120,7 @@ class PushNotificationService {
     if (lastRegistered === fcmToken) return;
 
     const deviceId = await deviceService.getHashedDeviceId();
+    if (!deviceId) return;
     const deviceSpec = this.buildDeviceSpec(deviceService.getSpec());
     const config = await NativeConfigServiceInstance.load();
 
