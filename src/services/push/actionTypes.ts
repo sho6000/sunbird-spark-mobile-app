@@ -10,7 +10,6 @@ export const ActionType = {
   CONTENT_UPDATE: 'contentUpdate',
   BOOK_UPDATE: 'bookUpdate',
   UPDATE_APP: 'updateApp',
-  EXT_URL: 'extURL',
   CONTENT_URL: 'contentURL',
   SEARCH: 'search',
 } as const;

@@ -40,20 +40,14 @@ describe('routeNotification', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it('calls openExternal with deepLink for extURL action type', () => {
+  it('falls back to /notifications for extURL (no longer supported)', () => {
     routeNotification(
       { actionType: 'extURL', actionData: { deepLink: 'https://example.com' } },
       push,
       openExternal,
     );
-    expect(openExternal).toHaveBeenCalledWith('https://example.com');
-    expect(push).not.toHaveBeenCalled();
-  });
-
-  it('does not call openExternal for extURL when deepLink is missing', () => {
-    routeNotification({ actionType: 'extURL', actionData: {} }, push, openExternal);
     expect(openExternal).not.toHaveBeenCalled();
-    expect(push).not.toHaveBeenCalled();
+    expect(push).toHaveBeenCalledWith('/notifications');
   });
 
   it('navigates to contentURL for contentURL action type', () => {
@@ -103,15 +97,6 @@ describe('routeNotification', () => {
         push,
       );
       expect(push).toHaveBeenCalledWith('/content/do_str_123');
-    });
-
-    it('parses stringified actionData for extURL', () => {
-      routeNotification(
-        { actionType: 'extURL', actionData: '{"deepLink":"https://example.com"}' },
-        push,
-        openExternal,
-      );
-      expect(openExternal).toHaveBeenCalledWith('https://example.com');
     });
 
     it('parses stringified actionData for contentURL', () => {

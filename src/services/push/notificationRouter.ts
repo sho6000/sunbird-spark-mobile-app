@@ -60,12 +60,6 @@ export function routeNotification(
       }
       break;
 
-    case ActionType.EXT_URL: {
-      const url: string = actionData.deepLink ?? '';
-      if (url && isSafeUrl(url)) openUrl(url);
-      break;
-    }
-
     case ActionType.CONTENT_URL: {
       const url: string = actionData.contentURL ?? '';
       if (!url) break;
