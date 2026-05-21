@@ -195,7 +195,7 @@ const PushNotificationGuard: React.FC = () => {
   });
 
   useEffect(() => {
-    const handleForeground = (e: Event) => {
+    const handleReceived = (e: Event) => {
       const data = (e as CustomEvent<Record<string, any>>).detail ?? {};
       const notificationId: string | undefined = data?.id ?? data?.notificationId;
       interactRef.current({
@@ -244,12 +244,12 @@ const PushNotificationGuard: React.FC = () => {
       void appUpdateService.openAppStore();
     };
 
-    window.addEventListener('push:received', handleForeground);
+    window.addEventListener('push:received', handleReceived);
     window.addEventListener('push:tapped', handleTap);
     window.addEventListener('push:update-app', handleUpdateApp);
 
     return () => {
-      window.removeEventListener('push:received', handleForeground);
+      window.removeEventListener('push:received', handleReceived);
       window.removeEventListener('push:tapped', handleTap);
       window.removeEventListener('push:update-app', handleUpdateApp);
     };
