@@ -33,8 +33,9 @@ const INTERNAL_PATTERNS: PatternMap[] = [
   { match: /^\/learn\/course\/([^/?#]+)/, toPath: (m) => `/content/${m[1]}` },
   // /explore (search landing)
   { match: /^\/explore(?:\/.*)?$/, toPath: () => '/explore' },
-  // /profile (or sub-paths) — keep namespace, strip host
-  { match: /^(\/profile(?:\/[^?#]*)?)/, toPath: (m) => m[1] },
+  // /profile (or sub-paths) — keep namespace, strip host.
+  // The `(?:\/.*)?$` anchor prevents accidental matches like `/profileX`.
+  { match: /^(\/profile(?:\/.*)?)$/, toPath: (m) => m[1] },
   // /notifications
   { match: /^\/notifications(?:\/.*)?$/, toPath: () => '/notifications' },
 ];

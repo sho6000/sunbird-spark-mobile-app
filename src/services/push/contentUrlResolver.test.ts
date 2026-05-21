@@ -43,6 +43,27 @@ describe('resolveContentUrl', () => {
     });
   });
 
+  it('matches /profile and sub-paths but not adjacent paths like /profileX', () => {
+    expect(resolveContentUrl('https://example.org/profile')).toEqual({
+      kind: 'internal',
+      path: '/profile',
+    });
+    expect(resolveContentUrl('https://example.org/profile/learning')).toEqual({
+      kind: 'internal',
+      path: '/profile/learning',
+    });
+    // The bug being guarded against: a prefix-only match that lets /profileX
+    // mis-route to /profile. Must fall through to the external bucket.
+    expect(resolveContentUrl('https://example.org/profileX')).toEqual({
+      kind: 'external',
+      url: 'https://example.org/profileX',
+    });
+    expect(resolveContentUrl('https://example.org/profile-old')).toEqual({
+      kind: 'external',
+      url: 'https://example.org/profile-old',
+    });
+  });
+
   it('falls back to external for unrecognised absolute http(s) URLs', () => {
     const result = resolveContentUrl('https://example.org/something/else');
     expect(result).toEqual({ kind: 'external', url: 'https://example.org/something/else' });
