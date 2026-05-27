@@ -9,7 +9,7 @@ export async function logout(browser: WebdriverIO.Browser): Promise<boolean> {
     await profileTab.click();
     await browser.pause(2000);
 
-    await browser.saveScreenshot('./test-results/profile-before-logout.png');
+    await browser.saveScreenshot('../reports/android/test-results/profile-before-logout.png');
 
     const signOutButton = await browser.$('android=new UiScrollable(new UiSelector().scrollable(true)).scrollIntoView(new UiSelector().text("Logout"))');
     const isSignOutVisible = await signOutButton.isExisting().catch(() => false);
@@ -18,7 +18,7 @@ export async function logout(browser: WebdriverIO.Browser): Promise<boolean> {
       await signOutButton.click();
       await browser.pause(3000);
 
-      await browser.saveScreenshot('./test-results/after-signout.png');
+      await browser.saveScreenshot('../reports/android/test-results/after-signout.png');
 
       const homeTab = await browser.$('//android.widget.Button[@text="Home"]');
       if (await homeTab.isExisting()) {
@@ -38,12 +38,12 @@ export async function logout(browser: WebdriverIO.Browser): Promise<boolean> {
       }
     } else {
       console.warn('Sign Out button not found after scrolling');
-      await browser.saveScreenshot('./test-results/signout-not-found.png');
+      await browser.saveScreenshot('../reports/android/test-results/signout-not-found.png');
       return false;
     }
   } catch (error) {
     console.error(`Logout failed: ${error}`);
-    await browser.saveScreenshot('./test-results/logout-error.png').catch(() => {});
+    await browser.saveScreenshot('../reports/android/test-results/logout-error.png').catch(() => {});
     throw error;
   }
 }

@@ -13,7 +13,9 @@ interface CourseInfo {
 }
 
 describe('E2E Suite 1: Continue Learning Journey', () => {
-    it('should dynamically collect and verify all courses across sections', async () => {
+    const courses: CourseInfo[] = [];
+
+    before(async () => {
         if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
             throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
         }
@@ -31,9 +33,9 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
             await homeTab.click();
             await browser.pause(2000);
         }
+    });
 
-        const courses: CourseInfo[] = [];
-
+    it('should verify Continue from where you left section', async () => {
         // ── PART A: Verify "Continue from where you left" ──
         const continueSection = await browser.$('//android.widget.TextView[@text="Continue from where you left"]');
         if (await continueSection.isExisting()) {
@@ -82,12 +84,15 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
                     }
 
                     courses.push({ name, progress, source: 'continue-learning', status });
+                    expect(status).toBe('passed');
                 }
             }
         } else {
             console.log('ℹ️ "Continue from where you left" section not found');
         }
+    });
 
+    it('should verify In Progress Courses section', async () => {
         // ── PART B: Verify "In Progress Courses" ──
         const windowSize = await browser.getWindowSize();
         const centerX = Math.floor(windowSize.width / 2);
@@ -109,14 +114,13 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
             await browser.pause(500);
         }
 
-        if (!ipSectionFound) 
-        {
+        if (!ipSectionFound) {
             console.log('ℹ️ "In Progress Courses" section not found');
-        } else 
-            {
+        } else {
             const verifiedNames = new Set<string>();
             const MAX_COURSES = 6;
             let consecutiveEmptyScrolls = 0;
+            let partBFailed = false;
 
             // Scroll down to reveal courses below the header
             for (let s = 0; s < 3; s++) {
@@ -179,6 +183,7 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
                     if (!(await courseBtn.isExisting())) {
                         console.warn(`  ⚠️ Could not locate "${course.name}" — skipping`);
                         courses.push({ name: course.name, progress: course.progress, source: 'in-progress', status: 'failed' });
+                        partBFailed = true;
                         continue;
                     }
                     await courseBtn.waitForDisplayed({ timeout: 5000 });
@@ -186,7 +191,7 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
                     const btnLoc = await courseBtn.getLocation();
                     const btnSize = await courseBtn.getSize();
                     const bottomEdge = btnLoc.y + btnSize.height;
-                    const NAV_THRESHOLD = 2780;
+                    const NAV_THRESHOLD = windowSize.height - 100;
                     if (bottomEdge > NAV_THRESHOLD) {
                         console.log(`  🚀 Button bottom at ${bottomEdge}px exceeds nav threshold ${NAV_THRESHOLD}px — scrolling to reveal fully`);
                         for (let s = 0; s < 2; s++) {
@@ -224,6 +229,7 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
                         console.log(`  ✅ Progress matches: ${actualProgress}`);
                     } catch (e) {
                         status = 'failed';
+                        partBFailed = true;
                         console.warn(`  ❌ "${course.name}" — ${(e as Error).message}`);
                     }
 
@@ -279,8 +285,14 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
                     await browser.pause(500);
                 }
             }
-        }
 
+            if (partBFailed) {
+                throw new Error('One or more in-progress courses failed verification');
+            }
+        }
+    });
+
+    after(async () => {
         // ── Summary ──
         console.log(`\n📊 Total courses processed: ${courses.length}`);
         const passed = courses.filter(c => c.status === 'passed');
@@ -291,12 +303,11 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
         }
 
         if (courses.length > 0) {
-            await browser.saveScreenshot('./test-results/suite1-continue-learning.png');
+            await browser.saveScreenshot('../reports/android/test-results/suite1-continue-learning.png');
         }
 
         if (failed.length > 0) {
             console.log(`\n❌ Suite 1: ${passed.length} passed, ${failed.length} failed`);
-            throw new Error(`${failed.length} course(s) failed verification`);
         }
 
         expect(courses.length).toBeGreaterThan(0);

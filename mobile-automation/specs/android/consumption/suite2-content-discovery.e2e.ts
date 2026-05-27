@@ -83,7 +83,7 @@ describe('Explore Page - Content Type Filter Tests (Suite 2)', () => {
                 if (matching.length > 0) {
                     console.log(`  Verified: ${matching.length} card(s) show "${badgeText}" badge`);
                 } else {
-                    console.warn(`  Warning: ${cardTexts.length} cards visible, none show "${badgeText}" badge`);
+                    expect(matching.length).toBeGreaterThan(0);
                 }
             } else {
                 const noContent = await browser.$('//*[contains(@text, "No content found")]').isExisting().catch(() => false);
@@ -94,7 +94,7 @@ describe('Explore Page - Content Type Filter Tests (Suite 2)', () => {
                 }
             }
 
-            await browser.saveScreenshot(`./test-results/filter-${checkboxText.toLowerCase().replace(/\s+/g, '-')}.png`);
+            await browser.saveScreenshot(`../reports/android/test-results/filter-${checkboxText.toLowerCase().replace(/\s+/g, '-')}.png`);
 
             previouslySelected = checkboxText;
         }

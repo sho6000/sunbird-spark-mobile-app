@@ -6,7 +6,7 @@ function extractCourseName(buttonText: string): string | null {
 }
 
 describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verify)', () => {
-    it('should preview certificate from course detail and verify download dialog options', async () => {
+    it('should preview certificate from course detail', async () => {
         if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
             throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
         }
@@ -92,7 +92,7 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
             throw new Error('No completed course with a certificate found');
         }
 
-        // ── PART 1: TC_19 — Preview Certificate from Course Detail ──
+        // ── TC_19 — Preview Certificate from Course Detail ──
 
         // Tap the UPPER portion of the card (course name area) to open course detail
         const cardLocation = await targetBtn.getLocation();
@@ -114,11 +114,12 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
         // Scroll down to find Certificate section
         const certSectionLabel = await browser.$('//android.widget.TextView[@text="Certificate"]');
         if (!(await certSectionLabel.isExisting().catch(() => false))) {
+            const windowSize = await browser.getWindowSize();
             for (let i = 0; i < 20; i++) {
                 await browser.action('pointer')
-                    .move({ x: 360, y: 1500 })
+                    .move({ x: Math.floor(windowSize.width / 2), y: Math.floor(windowSize.height * 0.65) })
                     .down()
-                    .move({ x: 360, y: 800 })
+                    .move({ x: Math.floor(windowSize.width / 2), y: Math.floor(windowSize.height * 0.35) })
                     .up()
                     .perform();
                 await browser.pause(500);
@@ -140,104 +141,116 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
         await dialog.waitForDisplayed({ timeout: 10000 });
         console.log('✅ TC_19 PASS: Certificate preview dialog opened successfully');
 
-        await browser.saveScreenshot('./test-results/suite5-certificate-preview.png');
+        await browser.saveScreenshot('../reports/android/test-results/suite5-certificate-preview.png');
 
         // Close the preview dialog via hardware back button
         await browser.back();
         await browser.pause(4000);
         await browser.back();
 
-
         console.log(`\n✅ TC_19: Certificate preview verified for course "${targetCourseName}"`);
+    });
 
-        // ── PART 2: TC_23, TC_24, TC_28 — Download Certificate options ──
-        // Now back on My Learning → Completed list, find the course card again
-        let courseCardBtn: WebdriverIO.Element | null = null;
-        const windowSize2 = await browser.getWindowSize();
-
-        for (let i = 0; i < 30; i++) {
-            const cards = await browser.$$('//android.widget.Button');
-            for (const card of cards) {
-                const text = await card.getText();
-                if (text.includes(targetCourseName!) && text.includes('Download Certificate')) {
-                    courseCardBtn = card;
-                    break;
-                }
-            }
-            if (courseCardBtn) {
-                console.log(`✅ Found "${targetCourseName}" card with Download Certificate after ${i + 1} scroll(s)`);
-                break;
-            }
-            await browser.action('pointer')
-                .move({ x: Math.floor(windowSize2.width / 2), y: Math.floor(windowSize2.height * 0.75) })
-                .down()
-                .move({ x: Math.floor(windowSize2.width / 2), y: Math.floor(windowSize2.height * 0.25) })
-                .up()
-                .perform();
-            await browser.pause(500);
+    it('should open download dialog and verify format options', async () => {
+        if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
+            throw new Error('Missing credentials in .env file');
         }
 
-        if (!courseCardBtn) {
-            throw new Error(`Could not find course card for "${targetCourseName}" in completed list`);
+        await login(browser, testCredentials.email, testCredentials.password);
+
+        const isLoggedIn = await verifyLogin(browser, testCredentials.username);
+        if (!isLoggedIn) {
+            throw new Error(`Login verification failed for "${testCredentials.username}"`);
         }
 
-        // Verify the card is fully visible, then tap the lower portion (Download Certificate area)
-        await courseCardBtn.waitForDisplayed({ timeout: 5000 });
-        const dlCardLocation = await courseCardBtn.getLocation();
-        const dlCardSize = await courseCardBtn.getSize();
-        const downloadTapY = dlCardLocation.y + Math.floor(dlCardSize.height * 0.85);
-        const dlCenterX = dlCardLocation.x + Math.floor(dlCardSize.width / 2);
-
-        await browser.action('pointer')
-            .move({ x: dlCenterX, y: downloadTapY })
-            .down()
-            .up()
-            .perform();
-        await browser.pause(3000);
-
-        // Verify the download options dialog appeared
-        const downloadDialog = await browser.$('//android.app.Dialog');
-        await downloadDialog.waitForDisplayed({ timeout: 10000 });
-        console.log('✅ Download options dialog opened');
-
-        // Verify download as PDF button (TC_23)
-        const pdfBtn = await browser.$('//android.widget.Button[@text="Download as PDF"]');
-        await pdfBtn.waitForDisplayed({ timeout: 5000 });
-        const pdfDisplayed = await pdfBtn.isDisplayed();
-        console.log(`✅ TC_23 PASS: "Download as PDF" button is ${pdfDisplayed ? 'visible' : 'not visible'}`);
-
-        // Verify download as PNG button (TC_24)
-        const pngBtn = await browser.$('//android.widget.Button[@text="Download as PNG"]');
-        await pngBtn.waitForDisplayed({ timeout: 5000 });
-        const pngDisplayed = await pngBtn.isDisplayed();
-        console.log(`✅ TC_24 PASS: "Download as PNG" button is ${pngDisplayed ? 'visible' : 'not visible'}`);
-
-        // Verify certificate download dialog has both format options (TC_28)
-        const bothFormatsAvailable = pdfDisplayed && pngDisplayed;
-        console.log(`✅ TC_28 PASS: Both PDF and PNG download options ${bothFormatsAvailable ? 'are available' : 'are NOT both available'}`);
-
-        await browser.saveScreenshot('./test-results/suite5-download-dialog.png');
-
-        // Verify Cancel button exists
-        const cancelBtn = await browser.$('//android.widget.Button[@text="Cancel"]');
-        await cancelBtn.waitForDisplayed({ timeout: 5000 });
-        const cancelDisplayed = await cancelBtn.isDisplayed();
-        console.log(`✅ Cancel button is ${cancelDisplayed ? 'visible' : 'not visible'}`);
-
-        // Dismiss dialog via Cancel
-        if (cancelDisplayed) {
-            await cancelBtn.click();
+        // Navigate to Profile → My Learning
+        const profileTab = await browser.$('//android.widget.Button[@content-desc="Profile"]');
+        if (await profileTab.isExisting()) {
+            await profileTab.click();
             await browser.pause(2000);
+        }
+
+        const myLearningProfile = await browser.$('//android.widget.Button[@text="My Learning"]');
+        if (await myLearningProfile.isExisting()) {
+            await myLearningProfile.click();
+            await browser.pause(2000);
+        }
+
+        // ... find the completed course ...
+        // For now, we navigate to the known completed course
+        const homeTab = await browser.$('//android.widget.Button[@content-desc="Home"]');
+        if (await homeTab.isExisting()) {
+            await homeTab.click();
+            await browser.pause(2000);
+        }
+
+        const exploreTab = await browser.$('//android.widget.Button[@content-desc="Explore"]');
+        if (await exploreTab.isExisting()) {
+            await exploreTab.click();
+            await browser.pause(2000);
+        }
+
+        // Use scrollUntilText to find the course
+        const { scrollUntilText } = await import('../../../fixtures/scroll.fixture');
+        const found = await scrollUntilText(browser, testCredentials.username, false);
+        if (!found) {
+            throw new Error('Could not find completed course for certificate test');
+        }
+
+        // Tap the course to open it
+        const courseCard = await browser.$(`//*[contains(@text, "${testCredentials.username}")]`);
+        if (await courseCard.isExisting()) {
+            await courseCard.click();
+            await browser.pause(3000);
+        }
+
+        // Now look for download certificate button
+        const downloadBtn = await browser.$('//android.widget.Button[contains(@text, "Download Certificate")]');
+        let pdfDisplayed = false;
+        let pngDisplayed = false;
+        if (await downloadBtn.isExisting()) {
+            await downloadBtn.click();
+            await browser.pause(2000);
+
+            // Verify download dialog appears
+            const downloadDialog = await browser.$('//android.app.Dialog');
+            await downloadDialog.waitForDisplayed({ timeout: 10000 });
+            console.log('✅ Download options dialog opened');
+
+            // Verify download as PDF button
+            const pdfBtn = await browser.$('//android.widget.Button[@text="Download as PDF"]');
+            await pdfBtn.waitForDisplayed({ timeout: 5000 });
+            pdfDisplayed = await pdfBtn.isDisplayed();
+            console.log(`✅ TC_23 PASS: "Download as PDF" button is ${pdfDisplayed ? 'visible' : 'not visible'}`);
+
+            // Verify download as PNG button
+            const pngBtn = await browser.$('//android.widget.Button[@text="Download as PNG"]');
+            await pngBtn.waitForDisplayed({ timeout: 5000 });
+            pngDisplayed = await pngBtn.isDisplayed();
+            console.log(`✅ TC_24 PASS: "Download as PNG" button is ${pngDisplayed ? 'visible' : 'not visible'}`);
+
+            // Both format options available
+            const bothFormatsAvailable = pdfDisplayed && pngDisplayed;
+            console.log(`✅ TC_28 PASS: Both PDF and PNG download options ${bothFormatsAvailable ? 'are available' : 'are NOT both available'}`);
+
+            await browser.saveScreenshot('../reports/android/test-results/suite5-download-dialog.png');
+
+            // Verify Cancel button exists
+            const cancelBtn = await browser.$('//android.widget.Button[@text="Cancel"]');
+            await cancelBtn.waitForDisplayed({ timeout: 5000 });
+            const cancelDisplayed = await cancelBtn.isDisplayed();
+            console.log(`✅ Cancel button is ${cancelDisplayed ? 'visible' : 'not visible'}`);
+
+            // Dismiss dialog via Cancel
+            if (cancelDisplayed) {
+                await cancelBtn.click();
+                await browser.pause(2000);
+            }
         }
 
         // ── Final Summary ──
         console.log('\n══════════════════════════════════════════════');
         console.log('📊 Suite 5: Certificate Complete Flow Results');
-        console.log('══════════════════════════════════════════════');
-        console.log(`✅ TC_19: Certificate preview — PASS (course: "${targetCourseName}")`);
-        console.log(`✅ TC_23: Download as PDF option — ${pdfDisplayed ? 'PASS' : 'FAIL'}`);
-        console.log(`✅ TC_24: Download as PNG option — ${pngDisplayed ? 'PASS' : 'FAIL'}`);
-        console.log(`✅ TC_28: Certificate format options — ${bothFormatsAvailable ? 'PASS' : 'FAIL'}`);
         console.log('══════════════════════════════════════════════');
 
         expect(pdfDisplayed).toBe(true);

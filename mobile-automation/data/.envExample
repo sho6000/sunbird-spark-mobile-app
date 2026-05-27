@@ -1,0 +1,15 @@
+# ── App Credentials ──
+SUNBIRD_EMAIL=your-email@example.com
+SUNBIRD_PASSWORD=your-password
+SUNBIRD_USERNAME=YourUserName
+
+# ── Appium / Device Config ──
+APPIUM_PORT=4723
+DEVICE_NAME=Android GoogleAPI Emulator
+PLATFORM_VERSION=15
+APP_PATH=./app/android/app-debug.apk
+
+# ── Advanced (optional) ──
+# Only needed if the home page shows more than 6 courses.
+# Prevents stale-element exceptions during course-card iteration.
+# MAX_COURSE=6
