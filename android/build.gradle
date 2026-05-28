@@ -78,15 +78,6 @@ buildscript {
     }
 }
 
-// Pin build-time (buildscript classpath) deps for the root project.
-// Note: :capacitor-cordova-android-plugins has its own buildscript block that
-// pulls AGP transitives independently. That subproject is pinned in
-// android/settings.gradle via gradle.beforeProject so the force is registered
-// before its buildscript classpath resolves.
-buildscript.configurations.classpath.resolutionStrategy {
-    buildClasspathPins.each { force it }
-}
-
 apply from: "variables.gradle"
 
 allprojects {
