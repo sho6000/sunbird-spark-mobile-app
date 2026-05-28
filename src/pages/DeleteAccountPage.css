@@ -1,0 +1,274 @@
+/* =============================================
+   Delete Account Page — all styles (da- prefix)
+   ============================================= */
+
+.delete-account-page {
+    --background: var(--color-white);
+}
+
+/* ── Page header — white toolbar override ── */
+.delete-account-page .da-header {
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.12);
+    background: var(--color-white);
+}
+
+.delete-account-page .da-toolbar {
+    --background: var(--color-white) !important;
+    --color: var(--ion-color-dark, var(--color-222222)) !important;
+    --border-width: 0 !important;
+}
+
+.delete-account-page .da-toolbar .da-title,
+.delete-account-page .da-toolbar .da-back-btn {
+    color: var(--ion-color-dark, var(--color-222222)) !important;
+}
+
+.da-title {
+    font-family: var(--ion-font-family);
+    font-size: 1.125rem;
+    font-weight: 500;
+    text-align: left;
+    padding-inline-start: 0;
+}
+
+.da-back-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    align-items: center;
+    color: var(--ion-color-primary);
+    font-size: 1.5rem;
+}
+
+/* ── Content ── */
+.da-content {
+    --background: var(--color-white);
+}
+
+.da-scroll-container {
+    padding: 1.5rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+/* ── Warning banner ── */
+.da-warning-banner {
+    background: var(--color-fef2f2);
+    border-left: 4px solid var(--ion-color-danger);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1rem;
+}
+
+[dir="rtl"] .da-warning-banner {
+    border-left: none;
+    border-right: 4px solid var(--ion-color-danger);
+}
+
+.da-warning-text {
+    font-family: var(--ion-font-family);
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--ion-color-danger);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* ── Email confirmation section ── */
+.da-email-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.da-email-label {
+    font-family: var(--ion-font-family);
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--ion-color-dark, var(--color-222222));
+}
+
+.da-email-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem 0.875rem;
+    font-family: var(--ion-font-family);
+    font-size: 0.95rem;
+    color: var(--ion-color-dark, var(--color-222222));
+    background: var(--color-white, #fff);
+    border: 1px solid var(--ion-color-medium, #c8c8c8);
+    border-radius: 0.5rem;
+    outline: none;
+}
+
+.da-email-input:focus {
+    border-color: var(--ion-color-primary);
+}
+
+.da-email-input[aria-invalid="true"] {
+    border-color: var(--ion-color-danger);
+}
+
+.da-email-input:disabled {
+    background: var(--ion-color-light, #f4f5f8);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.da-email-error {
+    font-family: var(--ion-font-family);
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: var(--ion-color-danger);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* ── Conditions section ── */
+.da-conditions-heading {
+    font-family: var(--ion-font-family);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ion-color-dark, var(--color-222222));
+    margin: 0 0 0.75rem;
+}
+
+.da-conditions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.875rem;
+}
+
+.da-condition-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.da-condition-checkbox {
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+    width: 1.125rem;
+    height: 1.125rem;
+    accent-color: var(--ion-color-primary);
+    cursor: pointer;
+}
+
+.da-condition-checkbox:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.da-condition-text {
+    font-family: var(--ion-font-family);
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--ion-color-dark, var(--color-222222));
+    line-height: 1.55;
+    margin: 0;
+}
+
+/* ── Page-level error ── */
+.da-page-error {
+    font-family: var(--ion-font-family);
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--ion-color-danger);
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* ── Footer — pinned outside IonContent ── */
+.da-footer {
+    flex-shrink: 0;
+    background: var(--ion-color-danger);
+    padding-bottom: var(--safe-area-bottom);
+}
+
+.da-submit-btn {
+    width: 100%;
+    height: 3.4375rem;
+    background: var(--ion-color-danger);
+    color: var(--color-white);
+    font-family: var(--ion-font-family);
+    font-size: 1rem;
+    font-weight: 500;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.da-submit-btn:hover  { background: var(--ion-color-danger-shade); }
+.da-submit-btn:active { background: var(--ion-color-danger-shade); }
+.da-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── OTP modal — bottom-sheet ── */
+.da-otp-modal {
+    --background: var(--color-white);
+    --border-radius: 1.25rem 1.25rem 0 0;
+    --height: 60%;
+    --max-height: 60%;
+    align-items: flex-end;
+}
+
+.da-otp-modal::part(content) {
+    border-radius: 1.25rem 1.25rem 0 0;
+}
+
+.da-otp-instructions {
+    font-family: var(--ion-font-family);
+    font-size: 0.9375rem;
+    font-weight: 400;
+    color: var(--ion-color-medium, var(--color-757575));
+    text-align: center;
+    margin: 0 0 1.25rem;
+    line-height: 1.5;
+}
+
+.da-otp-error {
+    font-family: var(--ion-font-family);
+    font-size: 0.875rem;
+    font-weight: 400;
+    color: var(--ion-color-danger);
+    text-align: center;
+    margin: 0 0 0.75rem;
+    min-height: 1.25rem;
+}
+
+/* Danger-colour footer inside the modal */
+.da-footer-danger {
+    flex-shrink: 0;
+    background: var(--ion-color-danger);
+    padding-bottom: var(--safe-area-bottom);
+}
+
+.da-confirm-btn {
+    width: 100%;
+    height: 3.4375rem;
+    background: var(--ion-color-danger);
+    color: var(--color-white);
+    font-family: var(--ion-font-family);
+    font-size: 1rem;
+    font-weight: 500;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.da-confirm-btn:hover  { background: var(--ion-color-danger-shade); }
+.da-confirm-btn:active { background: var(--ion-color-danger-shade); }
+.da-confirm-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── IonAlert danger button ── */
+.da-delete-alert .alert-button-role-destructive {
+    color: var(--ion-color-danger) !important;
+    font-weight: 600;
+}
+
+.da-delete-alert .alert-button-role-cancel {
+    color: var(--ion-color-medium, var(--color-757575));
+}

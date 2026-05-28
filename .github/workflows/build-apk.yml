@@ -130,13 +130,39 @@ jobs:
           }
           lines = props.read_text().splitlines(keepends=True)
           result = []
+          found = set()
           for line in lines:
               key = line.split('=', 1)[0].strip()
               if key in replacements:
                   result.append(f'{key}={replacements[key]}\n')
+                  found.add(key)
               else:
                   result.append(line)
+          for key, value in replacements.items():
+              if key not in found:
+                  result.append(f'{key}={value}\n')
           props.write_text(''.join(result))
+          EOF
+
+      - name: Verify gradle.properties values
+        run: |
+          python3 - <<'EOF'
+          import sys
+          from pathlib import Path
+
+          props = Path('android/gradle.properties')
+          required_keys = ['base_url', 'mobile_app_key', 'mobile_app_secret', 'mobile_app_consumer', 'producer_id', 'app_version']
+          parsed = {}
+          for line in props.read_text().splitlines():
+              if '=' in line and not line.startswith('#'):
+                  key, _, value = line.partition('=')
+                  parsed[key.strip()] = value.strip()
+          missing = [k for k in required_keys if not parsed.get(k)]
+          if missing:
+              for k in missing:
+                  print(f'::error::gradle.properties is missing or has empty value for: {k}')
+              sys.exit(1)
+          print('All required gradle.properties values are present')
           EOF
 
       - name: Capacitor sync

@@ -164,6 +164,8 @@ class UserService {
         'roles',
         'organisations',
         'framework',
+        'status',
+        'isDeleted',
       ].join(',');
       const response = await getClient().get(`/user/v5/read/${userId}?fields=${fields}`);
 
@@ -216,6 +218,20 @@ class UserService {
   /** Accept TnC for the given version */
   async acceptTnC(request: { version: string; userId?: string }): Promise<ApiResponse<any>> {
     return getClient().post('/user/v1/tnc/accept', { request });
+  }
+
+  /** Permanently delete the user account server-side */
+  async deleteUser(userId: string): Promise<ApiResponse<any>> {
+    return getClient().post('/user/v1/delete', { request: { userId } });
+  }
+
+  /** Check whether a given email is registered. Returns the matched user's id when exists. */
+  async checkEmailExists(
+    email: string,
+  ): Promise<ApiResponse<{ exists: boolean; id?: string; name?: string }>> {
+    // Sunbird's endpoint doesn't decode %-encoded path segments — pass the email raw
+    // so `@` arrives as `@`. The caller has already validated format upstream.
+    return getClient().get(`/user/v1/exists/email/${email}`);
   }
 }
 

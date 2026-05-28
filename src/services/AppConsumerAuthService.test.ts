@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { AppConsumerAuthService } from './AppConsumerAuthService';
 import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
-import { SignJWT } from 'jose';
+import { SignJWT, decodeProtectedHeader } from 'jose';
 
 // Mock dependencies
 vi.mock('capacitor-secure-storage-plugin', () => ({
@@ -165,13 +165,27 @@ describe('AppConsumerAuthService', () => {
 
     it('should generate app JWT when not cached', async () => {
       mockSecureStorage.get.mockResolvedValue({ value: null });
-      
+
       await service.init();
-      
+
       expect(mockSecureStorage.set).toHaveBeenCalledWith({
         key: 'APP_CONSUMER_JWT',
         value: expect.any(String),
       });
+    });
+
+    it('should include kid=mobileAppKey in app JWT protected header', async () => {
+      mockSecureStorage.get.mockResolvedValue({ value: null });
+
+      await service.init();
+
+      const appJwtCall = mockSecureStorage.set.mock.calls.find(
+        ([arg]: [{ key: string; value: string }]) => arg.key === 'APP_CONSUMER_JWT',
+      );
+      expect(appJwtCall).toBeTruthy();
+      const header = decodeProtectedHeader(appJwtCall[0].value);
+      expect(header.alg).toBe('HS256');
+      expect(header.kid).toBe('test-key');
     });
   });
 
@@ -269,7 +283,7 @@ describe('AppConsumerAuthService', () => {
 
     it('should register device and get device JWT', async () => {
       const token = await service.getAuthenticatedToken();
-      
+
       expect(mockSecureStorage.set).toHaveBeenCalledWith({
         key: 'DEVICE_CONSUMER_JWT',
         value: expect.any(String),
@@ -277,6 +291,14 @@ describe('AppConsumerAuthService', () => {
       expect(token).toBeTruthy();
       // The token should be different from app JWT since it's generated with device secret
       expect(token).not.toBe((service as any).appJwt);
+    });
+
+    it('should include kid=deviceId in device JWT protected header', async () => {
+      const token = await service.getAuthenticatedToken();
+
+      const header = decodeProtectedHeader(token);
+      expect(header.alg).toBe('HS256');
+      expect(header.kid).toBe('mock-device-id');
     });
 
     it('should fallback to app JWT when device registration fails', async () => {

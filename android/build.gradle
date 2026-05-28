@@ -1,18 +1,67 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
+// Centralized security-pinned versions to address Dependabot CVEs.
+// Version constants live in gradle.properties (loaded before script parsing).
+// Bump nettyVersion / protobufVersion there to roll out a fix across both classpaths.
+
+def nettyV = project.findProperty('nettyVersion') ?: '4.1.133.Final'
+def protobufV = project.findProperty('protobufVersion') ?: '3.25.5'
+
+def nettyModules = [
+    'netty-common',
+    'netty-buffer',
+    'netty-transport',
+    'netty-transport-native-unix-common',
+    'netty-resolver',
+    'netty-codec',
+    'netty-codec-http',
+    'netty-codec-http2',
+    'netty-codec-socks',
+    'netty-handler',
+    'netty-handler-proxy',
+]
+
+def nettyPins = nettyModules.collect { "io.netty:${it}:${nettyV}" }
+
+// Build-time only (Gradle/AGP classpath). Not shipped in APK.
+def buildClasspathPins = [
+    'org.bouncycastle:bcprov-jdk18on:1.84',
+    'org.bouncycastle:bcpkix-jdk18on:1.84',
+    'org.bouncycastle:bcutil-jdk18on:1.84',
+    'org.jdom:jdom2:2.0.6.1',
+    'org.bitbucket.b_c:jose4j:0.9.6',
+    'org.apache.commons:commons-compress:1.27.1',
+    'org.apache.commons:commons-lang3:3.18.0',
+] + nettyPins
+
+// Runtime (shipped in APK). Forced via Firebase Messaging transitives.
+def runtimePins = [
+    "com.google.protobuf:protobuf-java:${protobufV}",
+    "com.google.protobuf:protobuf-javalite:${protobufV}",
+    "com.google.protobuf:protobuf-kotlin:${protobufV}",
+] + nettyPins
+
 buildscript {
-    
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.9.1'
+        classpath 'com.android.tools.build:gradle:8.13.0'
         classpath 'com.google.gms:google-services:4.4.2'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
+}
+
+// Pin build-time (buildscript classpath) deps for the root project.
+// Note: :capacitor-cordova-android-plugins has its own buildscript block that
+// pulls AGP transitives independently. That subproject is pinned in
+// android/settings.gradle via gradle.beforeProject so the force is registered
+// before its buildscript classpath resolves.
+buildscript.configurations.classpath.resolutionStrategy {
+    buildClasspathPins.each { force it }
 }
 
 apply from: "variables.gradle"
@@ -21,6 +70,12 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+
+    configurations.configureEach {
+        resolutionStrategy {
+            runtimePins.each { force it }
+        }
     }
 }
 

@@ -44,6 +44,9 @@ jobs:
           SECRET_MOBILE_APP_CONSUMER: ${{ secrets.MOBILE_APP_CONSUMER }}
           VAR_BASE_URL: ${{ vars.BASE_URL }}
           VAR_PRODUCER_ID: ${{ vars.PRODUCER_ID }}
+          SECRET_AZURE_STORAGE_ACCOUNT: ${{ secrets.AZURE_STORAGE_ACCOUNT }}
+          SECRET_AZURE_STORAGE_KEY: ${{ secrets.AZURE_STORAGE_KEY }}
+          VAR_AZURE_CONTAINER_NAME: ${{ vars.AZURE_CONTAINER_NAME }}
         run: |
           ENV="${{ needs.determine-env.outputs.environment }}"
           MISSING=()
@@ -55,6 +58,9 @@ jobs:
           [ -z "$SECRET_MOBILE_APP_CONSUMER" ] && MISSING+=("MOBILE_APP_CONSUMER")
           [ -z "$VAR_BASE_URL" ] && MISSING+=("BASE_URL")
           [ -z "$VAR_PRODUCER_ID" ] && MISSING+=("PRODUCER_ID")
+          [ -z "$SECRET_AZURE_STORAGE_ACCOUNT" ] && MISSING+=("AZURE_STORAGE_ACCOUNT")
+          [ -z "$SECRET_AZURE_STORAGE_KEY" ] && MISSING+=("AZURE_STORAGE_KEY")
+          [ -z "$VAR_AZURE_CONTAINER_NAME" ] && MISSING+=("AZURE_CONTAINER_NAME")
           if [ ${#MISSING[@]} -ne 0 ]; then
             echo "::error::Missing required secrets/variables for '$ENV' environment: ${MISSING[*]}"
             exit 1
@@ -105,12 +111,63 @@ jobs:
           encodedString: ${{ secrets.GOOGLE_SERVICE_CONTENT }}
 
       - name: Replace secrets in gradle.properties
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+          MOBILE_APP_KEY: ${{ secrets.MOBILE_APP_KEY }}
+          MOBILE_APP_SECRET: ${{ secrets.MOBILE_APP_SECRET }}
+          MOBILE_APP_CONSUMER: ${{ secrets.MOBILE_APP_CONSUMER }}
+          PRODUCER_ID: ${{ vars.PRODUCER_ID }}
+          APP_VERSION: ${{ needs.determine-env.outputs.version }}
         run: |
-          sed -i "s|^base_url=.*|base_url=${{ vars.BASE_URL }}|" android/gradle.properties
-          sed -i "s|^mobile_app_key=.*|mobile_app_key=${{ secrets.MOBILE_APP_KEY }}|" android/gradle.properties
-          sed -i "s|^mobile_app_secret=.*|mobile_app_secret=${{ secrets.MOBILE_APP_SECRET }}|" android/gradle.properties
-          sed -i "s|^mobile_app_consumer=.*|mobile_app_consumer=${{ secrets.MOBILE_APP_CONSUMER }}|" android/gradle.properties
-          sed -i "s|^producer_id=.*|producer_id=${{ vars.PRODUCER_ID }}|" android/gradle.properties
+          python3 - <<'EOF'
+          import os
+          from pathlib import Path
+
+          props = Path('android/gradle.properties')
+          replacements = {
+              'base_url': os.environ['BASE_URL'],
+              'mobile_app_key': os.environ['MOBILE_APP_KEY'],
+              'mobile_app_secret': os.environ['MOBILE_APP_SECRET'],
+              'mobile_app_consumer': os.environ['MOBILE_APP_CONSUMER'],
+              'producer_id': os.environ['PRODUCER_ID'],
+              'app_version': os.environ['APP_VERSION'],
+          }
+          lines = props.read_text().splitlines(keepends=True)
+          result = []
+          found = set()
+          for line in lines:
+              key = line.split('=', 1)[0].strip()
+              if key in replacements:
+                  result.append(f'{key}={replacements[key]}\n')
+                  found.add(key)
+              else:
+                  result.append(line)
+          for key, value in replacements.items():
+              if key not in found:
+                  result.append(f'{key}={value}\n')
+          props.write_text(''.join(result))
+          EOF
+
+      - name: Verify gradle.properties values
+        run: |
+          python3 - <<'EOF'
+          import sys
+          from pathlib import Path
+
+          props = Path('android/gradle.properties')
+          required_keys = ['base_url', 'mobile_app_key', 'mobile_app_secret', 'mobile_app_consumer', 'producer_id', 'app_version']
+          parsed = {}
+          for line in props.read_text().splitlines():
+              if '=' in line and not line.startswith('#'):
+                  key, _, value = line.partition('=')
+                  parsed[key.strip()] = value.strip()
+          missing = [k for k in required_keys if not parsed.get(k)]
+          if missing:
+              for k in missing:
+                  print(f'::error::gradle.properties is missing or has empty value for: {k}')
+              sys.exit(1)
+          print('All required gradle.properties values are present')
+          EOF
 
       - name: Decode keystore
         id: decode_keystore

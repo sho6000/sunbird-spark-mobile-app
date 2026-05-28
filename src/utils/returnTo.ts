@@ -1,6 +1,6 @@
 const KEY = 'auth_return_to';
 const DEFAULT_RETURN_TO = '/home';
-const BLOCKED_PATHS = new Set(['/sign-in']);
+const BLOCKED_PATHS = new Set(['/sign-in', '/profile/delete-account']);
 
 function normalizeReturnTo(path: string | null): string | null {
   if (!path || !path.startsWith('/') || path.startsWith('//')) return null;

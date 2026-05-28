@@ -19,6 +19,7 @@ import {
 import NotificationCard from '../components/notifications/NotificationCard';
 import PageLoader from '../components/common/PageLoader';
 import type { NotificationFeed } from '../types/notificationTypes';
+import { ActionType } from '../services/push/actionTypes';
 import './NotificationPage.css';
 
 const NotificationPage: React.FC = () => {
@@ -53,7 +54,7 @@ const NotificationPage: React.FC = () => {
     const actionType = notification.action?.type;
     const additionalInfo = notification.action?.additionalInfo;
 
-    if (actionType === 'certificateUpdate') {
+    if (actionType === ActionType.CERTIFICATE_UPDATE) {
       router.push('/profile/learning');
     } else {
       const url = additionalInfo?.contentURL ?? additionalInfo?.deepLink;

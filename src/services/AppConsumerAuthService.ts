@@ -130,7 +130,7 @@ export class AppConsumerAuthService {
     const expiry = now + (24 * 60 * 60); // 24 hours from now
 
     const token = await new SignJWT({})
-      .setProtectedHeader({ alg: 'HS256' })
+      .setProtectedHeader({ alg: 'HS256', kid: this.mobileAppKey })
       .setIssuer(this.mobileAppKey)
       .setSubject(this.mobileAppConsumer)
       .setIssuedAt(now)
@@ -177,7 +177,7 @@ export class AppConsumerAuthService {
         const expiry = now + (24 * 60 * 60); // 24 hours from now
 
         const deviceJwt = await new SignJWT({})
-          .setProtectedHeader({ alg: 'HS256' })
+          .setProtectedHeader({ alg: 'HS256', kid: deviceId })
           .setIssuer(this.mobileAppKey)
           .setSubject(deviceId)
           .setIssuedAt(now)
