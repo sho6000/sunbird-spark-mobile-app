@@ -14,7 +14,7 @@ export async function login(browser: WebdriverIO.Browser, email: string, passwor
   try {
     const homeTab = await browser.$('//android.widget.Button[@text="Home"]');
     // Wait for app to initialize — proceed as soon as Home tab is ready
-    await homeTab.waitForDisplayed({ timeout: 15000 }).catch(() => {});
+    await homeTab.waitForDisplayed({ timeout: 15000 });
     await browser.pause(5000);
     const isHomeVisible = await homeTab.isExisting().catch(() => false);
 
@@ -69,6 +69,7 @@ export async function login(browser: WebdriverIO.Browser, email: string, passwor
       await browser.pause(10000);
 
       const homeTabAfterLogin = await browser.$('//android.widget.Button[@text="Home"]');
+      await homeTabAfterLogin.waitForDisplayed({ timeout: 15000 });
       if (await homeTabAfterLogin.isExisting()) {
         await homeTabAfterLogin.click();
         await browser.pause(2000);

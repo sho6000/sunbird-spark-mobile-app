@@ -1,6 +1,6 @@
 import { login, verifyLogin, testCredentials } from '../../../fixtures/login.fixture';
 
-let enrolledCourseName = '';
+let enrolledCourseName: string | null = null;
 
 const navLabels = new Set(['Search', 'Scan QR Code', 'Filters', 'Select Language', 'Home', 'My Learning', 'Explore', 'Support', 'Profile']);
 
@@ -439,6 +439,9 @@ describe('E2E Suite 4: Enrollment Progress Verification', () => {
   });
 
   it('should consume a content item and verify progress increases', async () => {
+    if (!enrolledCourseName) {
+      throw new Error('enrolledCourseName not set — it#1 did not complete successfully');
+    }
     console.log('\n=== Content Consumption Flow ===');
 
     const initialPct = await hasProgressDisplay(browser);
@@ -534,6 +537,9 @@ describe('E2E Suite 4: Enrollment Progress Verification', () => {
   });
 
   it('should leave the course and verify unenrollment', async () => {
+    if (!enrolledCourseName) {
+      throw new Error('enrolledCourseName not set — it#1 did not complete successfully');
+    }
     console.log('\n=== Leave Course Flow ===');
 
     const moreOpts = await browser.$('~More options');

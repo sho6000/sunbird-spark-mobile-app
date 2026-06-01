@@ -90,7 +90,7 @@ describe('Explore Page - Content Type Filter Tests (Suite 2)', () => {
                 if (noContent) {
                     console.log(`  No content found (empty state)`);
                 } else {
-                    console.log(`  No content cards visible on screen`);
+                    throw new Error(`Filter "${checkboxText}": no cards and no empty-state indicator found — possible render or network failure`);
                 }
             }
 

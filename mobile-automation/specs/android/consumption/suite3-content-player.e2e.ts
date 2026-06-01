@@ -357,286 +357,286 @@ describe('Suite 3 — Content Player', () => {
 
 // H5P CONTENT
 
-  // it('should play an H5P content and reach completion screen', async () => {
-  //   if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-  //     throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-  //   }
+  it('should play an H5P content and reach completion screen', async () => {
+    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
+      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
+    }
 
-  //   await login(browser, testCredentials.email, testCredentials.password);
+    await login(browser, testCredentials.email, testCredentials.password);
 
-  //   const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-  //   if (!isLoggedIn) {
-  //     throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-  //   }
+    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
+    if (!isLoggedIn) {
+      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
+    }
 
-  //   console.log('\n=== H5P ===');
+    console.log('\n=== H5P ===');
 
-  //   await tapExploreTab(browser);
+    await tapExploreTab(browser);
 
-  //   await findH5pCard(browser);
+    await findH5pCard(browser);
 
-  //   console.log('  Tapping Play button...');
-  //   await tapPlayButton(browser);
+    console.log('  Tapping Play button...');
+    await tapPlayButton(browser);
 
-  //   console.log('  Filling H5P blanks...');
-  //   await browser.pause(3000);
+    console.log('  Filling H5P blanks...');
+    await browser.pause(3000);
 
-  //   const firstBlank = await browser.$('//android.widget.EditText[starts-with(@hint, "Blank input")]');
-  //   if (!await firstBlank.isExisting()) {
-  //     throw new Error('No H5P blanks found');
-  //   }
-  //   const hintText = await firstBlank.getAttribute('hint');
-  //   const totalMatch = hintText.match(/of (\d+)/);
-  //   const totalBlanks = totalMatch ? parseInt(totalMatch[1], 10) : 3;
-  //   console.log(`  Total blanks expected: ${totalBlanks}`);
+    const firstBlank = await browser.$('//android.widget.EditText[starts-with(@hint, "Blank input")]');
+    if (!await firstBlank.isExisting()) {
+      throw new Error('No H5P blanks found');
+    }
+    const hintText = await firstBlank.getAttribute('hint');
+    const totalMatch = hintText.match(/of (\d+)/);
+    const totalBlanks = totalMatch ? parseInt(totalMatch[1], 10) : 3;
+    console.log(`  Total blanks expected: ${totalBlanks}`);
 
-  //   const filled = new Set<number>();
-  //   let scrolls = 0;
+    const filled = new Set<number>();
+    let scrolls = 0;
 
-  //   while (filled.size < totalBlanks && scrolls < 30) {
-  //     const visible = await browser.$$('//android.widget.EditText[starts-with(@hint, "Blank input")]');
-  //     for (const blank of visible) {
-  //       const h = await blank.getAttribute('hint');
-  //       const m = h.match(/Blank input (\d+)/);
-  //       if (!m) continue;
-  //       const idx = parseInt(m[1], 10);
-  //       if (filled.has(idx)) continue;
-  //       await blank.click();
-  //       await browser.pause(400);
-  //       await blank.setValue('test');
-  //       await browser.pause(200);
-  //       filled.add(idx);
-  //       console.log(`  Filled blank ${idx}/${totalBlanks}`);
-  //     }
-  //     if (filled.size < totalBlanks) {
-  //       const { width, height } = await browser.getWindowSize();
-  //       const sx = Math.round(width * 0.5);
-  //       const sy1 = Math.round(height * 0.85);
-  //       const sy2 = Math.round(height * 0.15);
-  //       const a = browser.action('pointer');
-  //       a.move({ x: sx, y: sy1, origin: 'viewport' });
-  //       a.down();
-  //       a.move({ x: sx, y: sy2, origin: 'viewport', duration: 600 });
-  //       a.up();
-  //       await a.perform();
-  //       await browser.pause(800);
-  //       scrolls++;
-  //     }
-  //   }
+    while (filled.size < totalBlanks && scrolls < 30) {
+      const visible = await browser.$$('//android.widget.EditText[starts-with(@hint, "Blank input")]');
+      for (const blank of visible) {
+        const h = await blank.getAttribute('hint');
+        const m = h.match(/Blank input (\d+)/);
+        if (!m) continue;
+        const idx = parseInt(m[1], 10);
+        if (filled.has(idx)) continue;
+        await blank.click();
+        await browser.pause(400);
+        await blank.setValue('test');
+        await browser.pause(200);
+        filled.add(idx);
+        console.log(`  Filled blank ${idx}/${totalBlanks}`);
+      }
+      if (filled.size < totalBlanks) {
+        const { width, height } = await browser.getWindowSize();
+        const sx = Math.round(width * 0.5);
+        const sy1 = Math.round(height * 0.85);
+        const sy2 = Math.round(height * 0.15);
+        const a = browser.action('pointer');
+        a.move({ x: sx, y: sy1, origin: 'viewport' });
+        a.down();
+        a.move({ x: sx, y: sy2, origin: 'viewport', duration: 600 });
+        a.up();
+        await a.perform();
+        await browser.pause(800);
+        scrolls++;
+      }
+    }
 
-  //   console.log(`  Filled ${filled.size}/${totalBlanks} blanks`);
+    console.log(`  Filled ${filled.size}/${totalBlanks} blanks`);
 
-  //   console.log('  Submitting via Tab...');
-  //   await browser.keys('\uE004');
-  //   await browser.pause(2000);
+    console.log('  Submitting via Tab...');
+    await browser.keys('\uE004');
+    await browser.pause(2000);
 
-  //   const resultTv = await browser.$('//android.widget.TextView[starts-with(@text, "You got")]');
-  //   await resultTv.waitForDisplayed({ timeout: 5000 });
-  //   console.log(`  Result: ${await resultTv.getText()}`);
+    const resultTv = await browser.$('//android.widget.TextView[starts-with(@text, "You got")]');
+    await resultTv.waitForDisplayed({ timeout: 5000 });
+    console.log(`  Result: ${await resultTv.getText()}`);
 
-  //   await pressBack(browser);
+    await pressBack(browser);
 
-  //   const closeSearch = await browser.$('~Close search');
-  //   if (await closeSearch.isExisting()) {
-  //     await closeSearch.click();
-  //     await browser.pause(1500);
-  //     console.log('  Search bar closed');
-  //   }
+    const closeSearch = await browser.$('~Close search');
+    if (await closeSearch.isExisting()) {
+      await closeSearch.click();
+      await browser.pause(1500);
+      console.log('  Search bar closed');
+    }
 
-  //   console.log('  H5P consumption complete, back on Explore page');
-  // });
+    console.log('  H5P consumption complete, back on Explore page');
+  });
 
 // VIDEO CONTENT
 
-//   it('should play a Video and reach completion screen', async () => {
-//     if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-//       throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-//     }
+  it('should play a Video and reach completion screen', async () => {
+    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
+      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
+    }
 
-//     await login(browser, testCredentials.email, testCredentials.password);
+    await login(browser, testCredentials.email, testCredentials.password);
 
-//     const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-//     if (!isLoggedIn) {
-//       throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-//     }
+    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
+    if (!isLoggedIn) {
+      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
+    }
 
-//     console.log('\n=== Video ===');
+    console.log('\n=== Video ===');
 
-//     await tapExploreTab(browser);
+    await tapExploreTab(browser);
 
-//     await applyFilter(browser, 'Video');
+    await applyFilter(browser, 'Video');
 
-//     const cardTitle = await findVideoCard(browser);
-//     if (!cardTitle) {
-//       throw new Error('No Video card found on Explore page');
-//     }
-//     console.log(`  Tapping card: "${cardTitle.substring(0, 60)}..."`);
+    const cardTitle = await findVideoCard(browser);
+    if (!cardTitle) {
+      throw new Error('No Video card found on Explore page');
+    }
+    console.log(`  Tapping card: "${cardTitle.substring(0, 60)}..."`);
 
-//     const card = await browser.$(`//android.widget.Button[@text="${cardTitle}"]`);
-//     await card.waitForDisplayed({ timeout: 5000 });
-//     await card.click();
-//     await browser.pause(2500);
+    const card = await browser.$(`//android.widget.Button[@text="${cardTitle}"]`);
+    await card.waitForDisplayed({ timeout: 5000 });
+    await card.click();
+    await browser.pause(2500);
 
-//     console.log('  Tapping Play button...');
-//     await tapPlayButton(browser);
+    console.log('  Tapping Play button...');
+    await tapPlayButton(browser);
 
-//     await waitForCompletion(browser);
+    await waitForCompletion(browser);
 
-//     await pressBack(browser);
+    await pressBack(browser);
 
-//     console.log('  Video consumption complete, back on Explore page');
-//   });
+    console.log('  Video consumption complete, back on Explore page');
+  });
 
 // PDF CONTENT
 
-  // it('should play a PDF and reach completion screen', async () => {
-  //   if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-  //     throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-  //   }
+  it('should play a PDF and reach completion screen', async () => {
+    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
+      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
+    }
 
-  //   await login(browser, testCredentials.email, testCredentials.password);
+    await login(browser, testCredentials.email, testCredentials.password);
 
-  //   const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-  //   if (!isLoggedIn) {
-  //     throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-  //   }
+    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
+    if (!isLoggedIn) {
+      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
+    }
 
-  //   console.log('\n=== PDF ===');
+    console.log('\n=== PDF ===');
 
-  //   await tapExploreTab(browser);
+    await tapExploreTab(browser);
 
-  //   await applyFilter(browser, 'PDF');
+    await applyFilter(browser, 'PDF');
 
-  //   const pdfTitle = await findPdfCard(browser);
-  //   if (!pdfTitle) {
-  //     throw new Error('No PDF card found on Explore page');
-  //   }
-  //   console.log(`  Tapping card: "${pdfTitle.substring(0, 60)}..."`);
+    const pdfTitle = await findPdfCard(browser);
+    if (!pdfTitle) {
+      throw new Error('No PDF card found on Explore page');
+    }
+    console.log(`  Tapping card: "${pdfTitle.substring(0, 60)}..."`);
 
-  //   const card = await browser.$(`//android.widget.Button[@text="${pdfTitle}"]`);
-  //   await card.waitForDisplayed({ timeout: 5000 });
-  //   await card.click();
-  //   await browser.pause(2500);
+    const card = await browser.$(`//android.widget.Button[@text="${pdfTitle}"]`);
+    await card.waitForDisplayed({ timeout: 5000 });
+    await card.click();
+    await browser.pause(2500);
 
-  //   console.log('  Tapping Play button...');
-  //   await tapPlayButton(browser);
+    console.log('  Tapping Play button...');
+    await tapPlayButton(browser);
 
-  //   await navigatePdfToLastPage(browser);
+    await navigatePdfToLastPage(browser);
 
-  //   await waitForCompletion(browser);
+    await waitForCompletion(browser);
 
-  //   const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
-  //   if (await exitBtn.isExisting()) {
-  //     await exitBtn.click();
-  //     await browser.pause(2000);
-  //     console.log('  Tapped Exit button');
-  //   }
+    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    if (await exitBtn.isExisting()) {
+      await exitBtn.click();
+      await browser.pause(2000);
+      console.log('  Tapped Exit button');
+    }
 
-  //   await pressBack(browser);
+    await pressBack(browser);
 
-  //   console.log('  PDF consumption complete, back on Explore page');
-  // });
+    console.log('  PDF consumption complete, back on Explore page');
+  });
 
 // EPUB CONTENT
 
-//   it('should play a EPUB and reach completion screen', async () => {
-//     if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-//       throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-//     }
+  it('should play a EPUB and reach completion screen', async () => {
+    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
+      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
+    }
 
-//     await login(browser, testCredentials.email, testCredentials.password);
+    await login(browser, testCredentials.email, testCredentials.password);
 
-//     const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-//     if (!isLoggedIn) {
-//       throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-//     }
+    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
+    if (!isLoggedIn) {
+      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
+    }
 
-//     console.log('\n=== EPUB ===');
+    console.log('\n=== EPUB ===');
 
-//     await tapExploreTab(browser);
+    await tapExploreTab(browser);
 
-//     await applyFilter(browser, 'Epub');
+    await applyFilter(browser, 'Epub');
 
-//     const epubTitle = await findEpubCard(browser);
-//     if (!epubTitle) {
-//       throw new Error('No EPUB card found on Explore page');
-//     }
-//     console.log(`  Tapping card: "${epubTitle.substring(0, 60)}..."`);
+    const epubTitle = await findEpubCard(browser);
+    if (!epubTitle) {
+      throw new Error('No EPUB card found on Explore page');
+    }
+    console.log(`  Tapping card: "${epubTitle.substring(0, 60)}..."`);
 
-//     const card = await browser.$(`//android.widget.Button[@text="${epubTitle}"]`);
-//     await card.waitForDisplayed({ timeout: 5000 });
-//     await card.click();
-//     await browser.pause(2500);
+    const card = await browser.$(`//android.widget.Button[@text="${epubTitle}"]`);
+    await card.waitForDisplayed({ timeout: 5000 });
+    await card.click();
+    await browser.pause(2500);
 
-//     console.log('  Tapping Play button...');
-//     await tapPlayButton(browser);
+    console.log('  Tapping Play button...');
+    await tapPlayButton(browser);
 
-//     await navigateEpubToLastPage(browser);
+    await navigateEpubToLastPage(browser);
 
-//     await waitForCompletion(browser);
+    await waitForCompletion(browser);
 
-//     const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
-//     if (await exitBtn.isExisting()) {
-//       await exitBtn.click();
-//       await browser.pause(2000);
-//       console.log('  Tapped Exit button');
-//     }
+    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    if (await exitBtn.isExisting()) {
+      await exitBtn.click();
+      await browser.pause(2000);
+      console.log('  Tapped Exit button');
+    }
 
-//     await pressBack(browser);
+    await pressBack(browser);
 
-//     console.log('  EPUB consumption complete, back on Explore page');
+    console.log('  EPUB consumption complete, back on Explore page');
 
-//   });
+  });
 
 // YOUTUBE CONTENT
 
-  // it('should play a YouTube video and reach completion screen', async () => {
-  //   if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-  //     throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-  //   }
+  it('should play a YouTube video and reach completion screen', async () => {
+    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
+      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
+    }
 
-  //   await login(browser, testCredentials.email, testCredentials.password);
+    await login(browser, testCredentials.email, testCredentials.password);
 
-  //   const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-  //   if (!isLoggedIn) {
-  //     throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-  //   }
+    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
+    if (!isLoggedIn) {
+      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
+    }
 
-  //   console.log('\n=== YouTube ===');
+    console.log('\n=== YouTube ===');
 
-  //   await tapExploreTab(browser);
+    await tapExploreTab(browser);
 
-  //   await applyFilter(browser, 'Youtube');
+    await applyFilter(browser, 'Youtube');
 
-  //   const ytTitle = await findYoutubeCard(browser);
-  //   if (!ytTitle) {
-  //     throw new Error('No YouTube card found on Explore page');
-  //   }
-  //   console.log(`  Tapping card: "${ytTitle.substring(0, 60)}..."`);
+    const ytTitle = await findYoutubeCard(browser);
+    if (!ytTitle) {
+      throw new Error('No YouTube card found on Explore page');
+    }
+    console.log(`  Tapping card: "${ytTitle.substring(0, 60)}..."`);
 
-  //   const card = await browser.$(`//android.widget.Button[@text="${ytTitle}"]`);
-  //   await card.waitForDisplayed({ timeout: 5000 });
-  //   await card.click();
-  //   await browser.pause(2500);
+    const card = await browser.$(`//android.widget.Button[@text="${ytTitle}"]`);
+    await card.waitForDisplayed({ timeout: 5000 });
+    await card.click();
+    await browser.pause(2500);
 
-  //   console.log('  Tapping Play button...');
-  //   await tapPlayButton(browser);
+    console.log('  Tapping Play button...');
+    await tapPlayButton(browser);
 
-  //   await navigateYoutubeToLastPage(browser);
+    await navigateYoutubeToLastPage(browser);
 
-  //   await waitForCompletion(browser);
+    await waitForCompletion(browser);
 
-  //   const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
-  //   if (await exitBtn.isExisting()) {
-  //     await exitBtn.click();
-  //     await browser.pause(2000);
-  //     console.log('  Tapped Exit button');
-  //   }
+    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    if (await exitBtn.isExisting()) {
+      await exitBtn.click();
+      await browser.pause(2000);
+      console.log('  Tapped Exit button');
+    }
 
-  //   await pressBack(browser);
+    await pressBack(browser);
 
-  //   console.log('  YouTube consumption complete, back on Explore page');
-  // });
+    console.log('  YouTube consumption complete, back on Explore page');
+  });
 
 // HTML CONTENT NOT TESTED
 
@@ -688,54 +688,54 @@ describe('Suite 3 — Content Player', () => {
 
 // ECML CONTENT
 
-  // it('should play an ECML content and reach completion screen', async () => {
-  //   if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-  //     throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-  //   }
+  it('should play an ECML content and reach completion screen', async () => {
+    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
+      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
+    }
 
-  //   await login(browser, testCredentials.email, testCredentials.password);
+    await login(browser, testCredentials.email, testCredentials.password);
 
-  //   const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-  //   if (!isLoggedIn) {
-  //     throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-  //   }
+    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
+    if (!isLoggedIn) {
+      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
+    }
 
-  //   console.log('\n=== ECML ===');
+    console.log('\n=== ECML ===');
 
-  //   await tapExploreTab(browser);
+    await tapExploreTab(browser);
 
-  //   await applyFilter(browser, 'Interactive');
+    await applyFilter(browser, 'Interactive');
 
-  //   const ecmlTitle = await findEcmlCard(browser);
-  //   if (!ecmlTitle) {
-  //     throw new Error('No ECML card found on Explore page');
-  //   }
-  //   console.log(`  Tapping card: "${ecmlTitle.substring(0, 60)}..."`);
+    const ecmlTitle = await findEcmlCard(browser);
+    if (!ecmlTitle) {
+      throw new Error('No ECML card found on Explore page');
+    }
+    console.log(`  Tapping card: "${ecmlTitle.substring(0, 60)}..."`);
 
-  //   const card = await browser.$(`//android.widget.Button[@text="${ecmlTitle}"]`);
-  //   await card.waitForDisplayed({ timeout: 5000 });
-  //   await card.click();
-  //   await browser.pause(2500);
+    const card = await browser.$(`//android.widget.Button[@text="${ecmlTitle}"]`);
+    await card.waitForDisplayed({ timeout: 5000 });
+    await card.click();
+    await browser.pause(2500);
 
-  //   console.log('  Tapping Play button...');
-  //   await tapPlayButton(browser);
+    console.log('  Tapping Play button...');
+    await tapPlayButton(browser);
 
-  //   await navigateEcmlToLastPage(browser);
+    await navigateEcmlToLastPage(browser);
 
-  //   await waitForCompletion(browser);
+    await waitForCompletion(browser);
 
-  //   const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
-  //   if (await exitBtn.isExisting()) {
-  //     await exitBtn.click();
-  //     await browser.pause(2000);
-  //     console.log('  Tapped Exit button');
-  //   }
+    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    if (await exitBtn.isExisting()) {
+      await exitBtn.click();
+      await browser.pause(2000);
+      console.log('  Tapped Exit button');
+    }
 
-  //   await pressBack(browser);
+    await pressBack(browser);
 
-  //   console.log('  ECML consumption complete, back on Explore page');
+    console.log('  ECML consumption complete, back on Explore page');
 
-  // });
+  });
 
 });
 

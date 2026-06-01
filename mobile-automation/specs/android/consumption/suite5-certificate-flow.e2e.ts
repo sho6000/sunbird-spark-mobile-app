@@ -6,6 +6,8 @@ function extractCourseName(buttonText: string): string | null {
 }
 
 describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verify)', () => {
+    let targetCourseName: string | null = null;
+
     it('should preview certificate from course detail', async () => {
         if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
             throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
@@ -43,7 +45,6 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
 
         // Locate a completed course card with "Download Certificate" in its text
         const allBtns = await browser.$$('//android.widget.Button');
-        let targetCourseName: string | null = null;
         let targetBtn: WebdriverIO.Element | null = null;
 
         for (const btn of allBtns) {
@@ -190,15 +191,19 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
             await browser.pause(2000);
         }
 
+        if (!targetCourseName) {
+            throw new Error('No completed course name available from previous test');
+        }
+
         // Use scrollUntilText to find the course
         const { scrollUntilText } = await import('../../../fixtures/scroll.fixture');
-        const found = await scrollUntilText(browser, testCredentials.username, false);
+        const found = await scrollUntilText(browser, targetCourseName, false);
         if (!found) {
-            throw new Error('Could not find completed course for certificate test');
+            throw new Error(`Could not find completed course "${targetCourseName}" for certificate test`);
         }
 
         // Tap the course to open it
-        const courseCard = await browser.$(`//*[contains(@text, "${testCredentials.username}")]`);
+        const courseCard = await browser.$(`//*[contains(@text, "${targetCourseName}")]`);
         if (await courseCard.isExisting()) {
             await courseCard.click();
             await browser.pause(3000);
