@@ -106,6 +106,21 @@ jobs:
           fileDir: '${{ github.workspace }}/android/app/'
           encodedString: ${{ secrets.GOOGLE_SERVICE_CONTENT }}
 
+      - name: Decode debug keystore (optional)
+        if: ${{ secrets.DEBUG_KEYSTORE != '' }}
+        run: |
+          mkdir -p ~/.android
+          echo "${{ secrets.DEBUG_KEYSTORE }}" | base64 --decode > ~/.android/debug.keystore
+          echo "Debug keystore SHA1:"
+          keytool -list -v -keystore ~/.android/debug.keystore \
+            -alias androiddebugkey -storepass android -keypass android \
+            | grep SHA1 | head -1
+
+      - name: Warn if debug keystore not configured
+        if: ${{ secrets.DEBUG_KEYSTORE == '' }}
+        run: |
+          echo "::warning::DEBUG_KEYSTORE secret not set. APK will be signed with runner's auto-generated debug keystore. Google Sign-In will fail because SHA-1 is not registered in Firebase. Set DEBUG_KEYSTORE secret to fix."
+
       - name: Replace secrets in gradle.properties
         env:
           BASE_URL: ${{ vars.BASE_URL }}
