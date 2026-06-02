@@ -1,0 +1,8 @@
+def debugKs = file('app/keystore/debug.keystore')
+if (debugKs.exists()) {
+    android.signingConfigs.debug.storeFile debugKs
+    android.signingConfigs.debug.storePassword 'android'
+    android.signingConfigs.debug.keyAlias 'androiddebugkey'
+    android.signingConfigs.debug.keyPassword 'android'
+    android.buildTypes.debug.signingConfig android.signingConfigs.debug
+}
