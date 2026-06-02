@@ -179,28 +179,8 @@ jobs:
       - name: Capacitor sync
         run: npx cap sync android
 
-      - name: Verify decoded keystore present
-        run: |
-          KS="${{ github.workspace }}/android/app/keystore/debug.keystore"
-          if [ -f "$KS" ]; then
-            echo "Present: $KS"
-            keytool -list -v -keystore "$KS" -storepass android -alias androiddebugkey 2>&1 | grep -iE "Alias name:|SHA1:" | head -2
-          else
-            echo "::warning::Decoded keystore NOT found at $KS — gradle will fall back to AGP auto-gen"
-          fi
-
       - name: Build debug APK
-        run: cd android && ./gradlew clean assembleDebug --stacktrace --no-build-cache
-
-      - name: Verify APK signing cert
-        run: |
-          APK_FILE=$(find android/app/build/outputs/apk/debug/ -name "*.apk" | head -1)
-          if [ -z "$APK_FILE" ]; then
-            echo "::warning::No APK found to verify"
-            exit 0
-          fi
-          BUILD_TOOLS=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | sort -V | tail -1)
-          "$BUILD_TOOLS/apksigner" verify --print-certs "$APK_FILE" | grep -i "SHA-1\|SHA-256" | head -2
+        run: cd android && ./gradlew assembleDebug --stacktrace
 
       - name: Verify APK was created
         run: |
