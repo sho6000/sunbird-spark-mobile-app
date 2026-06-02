@@ -179,6 +179,16 @@ jobs:
       - name: Capacitor sync
         run: npx cap sync android
 
+      - name: Verify decoded keystore present
+        run: |
+          KS="${{ github.workspace }}/android/app/keystore/debug.keystore"
+          if [ -f "$KS" ]; then
+            echo "Present: $KS"
+            keytool -list -v -keystore "$KS" -storepass android -alias androiddebugkey 2>&1 | grep -iE "Alias name:|SHA1:" | head -2
+          else
+            echo "::warning::Decoded keystore NOT found at $KS — gradle will fall back to AGP auto-gen"
+          fi
+
       - name: Build debug APK
         run: cd android && ./gradlew clean assembleDebug --stacktrace --no-build-cache
 

@@ -1,4 +1,4 @@
-def debugKs = file('app/keystore/debug.keystore')
+def debugKs = rootProject.file('app/keystore/debug.keystore')
 if (debugKs.exists()) {
     android.signingConfigs.debug.storeFile debugKs
     android.signingConfigs.debug.storePassword 'android'
