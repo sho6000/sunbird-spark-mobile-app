@@ -50,18 +50,32 @@ buildscript {
         classpath 'com.android.tools.build:gradle:8.13.0'
         classpath 'com.google.gms:google-services:4.4.2'
 
+        // Direct classpath pins for Dependabot. Top-level entries ensure the
+        // submitted dependency graph reports patched versions, not the older
+        // transitives pulled by AGP/google-services. Keep in sync with
+        // buildClasspathPins below.
+        classpath 'org.bouncycastle:bcprov-jdk18on:1.84'
+        classpath 'org.bouncycastle:bcpkix-jdk18on:1.84'
+        classpath 'org.bouncycastle:bcutil-jdk18on:1.84'
+        classpath 'org.jdom:jdom2:2.0.6.1'
+        classpath 'org.bitbucket.b_c:jose4j:0.9.6'
+        classpath 'org.apache.commons:commons-compress:1.27.1'
+        classpath 'org.apache.commons:commons-lang3:3.18.0'
+        classpath 'io.netty:netty-common:4.1.133.Final'
+        classpath 'io.netty:netty-buffer:4.1.133.Final'
+        classpath 'io.netty:netty-transport:4.1.133.Final'
+        classpath 'io.netty:netty-transport-native-unix-common:4.1.133.Final'
+        classpath 'io.netty:netty-resolver:4.1.133.Final'
+        classpath 'io.netty:netty-codec:4.1.133.Final'
+        classpath 'io.netty:netty-codec-http:4.1.133.Final'
+        classpath 'io.netty:netty-codec-http2:4.1.133.Final'
+        classpath 'io.netty:netty-codec-socks:4.1.133.Final'
+        classpath 'io.netty:netty-handler:4.1.133.Final'
+        classpath 'io.netty:netty-handler-proxy:4.1.133.Final'
+
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
-}
-
-// Pin build-time (buildscript classpath) deps for the root project.
-// Note: :capacitor-cordova-android-plugins has its own buildscript block that
-// pulls AGP transitives independently. That subproject is pinned in
-// android/settings.gradle via gradle.beforeProject so the force is registered
-// before its buildscript classpath resolves.
-buildscript.configurations.classpath.resolutionStrategy {
-    buildClasspathPins.each { force it }
 }
 
 apply from: "variables.gradle"

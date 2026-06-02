@@ -31,6 +31,8 @@ android {
         }
     }
     signingConfigs {
+        debug {
+        }
         release {
         }
     }
@@ -62,6 +64,7 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 apply from: '../signing.gradle'
+apply from: '../debug-signing.gradle'
 
 try {
     def servicesJSON = file('google-services.json')
