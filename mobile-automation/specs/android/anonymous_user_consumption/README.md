@@ -1,7 +1,6 @@
-# E2E Test Suites - Anonymous User Consumption (Consolidated)
+# Anonymous User Consumption Test Suites
 
-## Overview
-This document consolidates **8 individual test cases** for Anonymous Users into **4 comprehensive E2E test suites** that eliminate redundancy while maintaining full test coverage.
+End-to-end test suites for logged out users content consumption flows in the Sunbird Spark Android app.
 
 ---
 

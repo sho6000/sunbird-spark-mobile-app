@@ -317,7 +317,7 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
         }
 
         if (courses.length > 0) {
-            await browser.saveScreenshot('../reports/android/test-results/suite1-continue-learning.png');
+            await browser.saveScreenshot('../reports/android/test-results/suite1-home-in-progress-courses.png');
         }
 
         if (failed.length > 0) {
@@ -625,7 +625,7 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
 //         }
 
 //         if (courses.length > 0) {
-//             await browser.saveScreenshot('../reports/android/test-results/suite1-continue-learning.png');
+//             await browser.saveScreenshot('../reports/android/test-results/suite1-home-in-progress-courses.png');
 //         }
 
 //         if (failed.length > 0) {

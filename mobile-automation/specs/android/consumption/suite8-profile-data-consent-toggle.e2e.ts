@@ -111,6 +111,6 @@ describe('E2E Suite 8: Profile Data & Consent Management', () => {
   });
 
   after(async () => {
-    await browser.saveScreenshot('../reports/android/test-results/suite8-profile-data.png');
+    await browser.saveScreenshot('../reports/android/test-results/suite8-profile-data-consent-toggle.png');
   });
 });

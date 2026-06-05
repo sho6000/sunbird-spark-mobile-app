@@ -567,6 +567,6 @@ describe('E2E Suite 4: Enrollment Progress Verification', () => {
   });
 
   after(async () => {
-    await browser.saveScreenshot('../reports/android/test-results/suite4-enrollment-progress.png');
+    await browser.saveScreenshot('../reports/android/test-results/suite4-course-enrollment-and-progress.png');
   });
 });

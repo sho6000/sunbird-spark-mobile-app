@@ -198,7 +198,7 @@ describe('E2E Suite 1: Anonymous Home & Explore Discovery (TC_01, TC_04)', () =>
             console.log(`  - ${type}: ${count}`);
         }
 
-        await browser.saveScreenshot('./test-results/suite1-anonymous-discovery.png');
+        await browser.saveScreenshot('./test-results/suite1-guest-home-and-explore-browsing.png');
 
         expect(allCards.length).toBeGreaterThan(0);
         console.log(`\n✅ Suite 1: ${allCards.length} card(s) verified successfully`);

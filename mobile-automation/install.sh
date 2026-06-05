@@ -105,8 +105,7 @@ echo ""
 echo "  Next steps:"
 echo "  1. Edit $ROOT_DIR/.env with your credentials"
 echo "  2. Place your APK at $ROOT_DIR/app/android/ (or update APP_PATH in .env)"
-echo "  3. Start an Appium server or run: npx appium"
-echo "  4. Run tests: cd $CONFIG_DIR && npm run wdio"
+  echo "  3. Run tests (Appium is auto-managed): cd $CONFIG_DIR && npm run test"
 echo ""
 
 if [ "$FAIL" -gt 0 ]; then

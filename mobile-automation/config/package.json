@@ -11,9 +11,12 @@
     "@wdio/spec-reporter": "^9.27.0",
     "appium-uiautomator2-driver": "^7.1.2",
     "dotenv": "^17.4.2",
-    "expect-webdriverio": "^5.6.5"
+    "expect-webdriverio": "^5.6.5",
+    "@wdio/junit-reporter": "^9.27.2"
   },
   "scripts": {
-    "wdio": "wdio run ./wdio.conf.ts"
+    "wdio": "wdio run ./wdio.conf.ts",
+    "report": "node generate-md-report.js",
+    "test": "npm run wdio && npm run report"
   }
 }
