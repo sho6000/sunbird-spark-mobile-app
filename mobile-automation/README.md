@@ -13,10 +13,7 @@ End-to-end test suite for Android mobile apps using WebdriverIO + Appium. Design
 # 2. Edit your .env file with credentials and device settings
 #    (install.sh creates .env from data/.envExample)
 
-# 3. Start Appium
-npx appium
-
-# 4. Run all tests
+# 3. Run all tests
 cd config && npm run wdio
 ```
 
@@ -318,16 +315,6 @@ To test activity start:
 adb shell dumpsys activity activities | findstr /i "org.sunbird.app"
 ```
 
----
-
-## Summary: Script Reduction
-
-### Original Test Cases: **29 individual scripts**
-
-### **Total Reduction: 29 scripts → 8 scripts (72% reduction)**
-
----
-
 ## Implementation Notes
 
 1. **Suite 3 (Multi-Format Player)** can be further split if needed:
@@ -344,17 +331,6 @@ adb shell dumpsys activity activities | findstr /i "org.sunbird.app"
 
 ~~4. **Parallel Execution:** Suites 1-8 are independent and can run in parallel for faster execution~~
 
----
-
-## Benefits of Consolidation
-
-✅ **Reduced Maintenance:** 8 scripts instead of 29  
-✅ **Realistic User Flows:** Tests mimic actual user behavior  
-✅ **Better Coverage:** E2E flows catch integration issues  
-✅ **Faster Execution:** Shared setup/teardown reduces overhead  
-✅ **Easier Debugging:** Complete user journeys easier to troubleshoot
-
----
 
 ## Original Test Coverage
 

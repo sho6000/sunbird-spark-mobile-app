@@ -8,6 +8,7 @@ APPIUM_PORT=4723
 DEVICE_NAME=Android GoogleAPI Emulator
 PLATFORM_VERSION=15
 APP_PATH=./app/android/app-debug.apk
+APP_UDID=emulator-5554
 
 # ── Advanced (optional) ──
 # Only needed if the home page shows more than 6 courses.
