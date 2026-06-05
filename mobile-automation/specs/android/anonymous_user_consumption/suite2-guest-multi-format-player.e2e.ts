@@ -1,4 +1,4 @@
-import { verifyAnonymous, assertNoLoginPrompt } from '../../../fixtures/verify-anonymous.fixture';
+import { verifyAnonymous, assertNoLoginPrompt, ensureAnonymous } from '../../../fixtures/verify-anonymous.fixture';
 
 async function tapExploreTab(browser: WebdriverIO.Browser): Promise<void> {
   const explore = await browser.$('//android.widget.Button[@content-desc="Explore" or @text="Explore"]');
@@ -215,6 +215,9 @@ async function findVideoCard(browser: WebdriverIO.Browser): Promise<string> {
 // PDF CONTENT
 
 describe('E2E Suite 2: Multi-Format Content Consumption — PDF (TC_02)', () => {
+  before(async () => {
+    await ensureAnonymous(browser);
+  });
 
   it('Part A: PDF content consumption via Explore filter', async () => {
 

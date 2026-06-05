@@ -2,6 +2,8 @@
 
 End-to-end test suites for authenticated content consumption flows in the Sunbird Spark Android app.
 
+**Session handling:** Login state is preserved across suites (`appium:noReset: true`). Each suite calls `login()` but it skips if already authenticated (checks for "Hi" greeting). Anonymous suites auto-logout before starting to ensure a clean guest state.
+
 ---
 
 ## Suite Explanations

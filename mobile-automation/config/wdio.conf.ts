@@ -28,7 +28,7 @@ export const config: WebdriverIO.Config = {
         'appium:platformVersion': process.env.PLATFORM_VERSION || '15',
         'appium:app': appPath,
         'appium:automationName': 'UiAutomator2',
-        'appium:udid': process.env.APP_UDID || 'emulator-5554',
+        'appium:udid': process.env.APP_UDID || 'emulator-5554'
     }],
 
     //

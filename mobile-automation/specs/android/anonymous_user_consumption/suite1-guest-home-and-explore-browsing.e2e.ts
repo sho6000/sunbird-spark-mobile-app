@@ -1,4 +1,4 @@
-import { verifyAnonymous, assertNoLoginPrompt } from '../../../fixtures/verify-anonymous.fixture';
+import { verifyAnonymous, assertNoLoginPrompt, ensureAnonymous } from '../../../fixtures/verify-anonymous.fixture';
 
 const CONTENT_TYPES = ['Course', 'PDF', 'Video', 'EPUB', 'HTML', 'ECML'];
 
@@ -19,6 +19,9 @@ function parseCard(text: string): ParsedCard {
 }
 
 describe('E2E Suite 1: Anonymous Home & Explore Discovery (TC_01, TC_04)', () => {
+    before(async () => {
+        await ensureAnonymous(browser);
+    });
 
     const allCards: { source: string; card: ParsedCard }[] = [];
 

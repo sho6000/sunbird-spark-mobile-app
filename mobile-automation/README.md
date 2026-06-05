@@ -139,6 +139,12 @@ cd config && npm run report
 npx wdio run ./config/wdio.conf.ts --spec ./specs/android/consumption/suite1-home-in-progress-courses.e2e.ts
 ```
 
+### Session Handling
+
+The app session is **preserved across suites** (`appium:noReset: true`). The login state is kept between consumption suites — `login()` is called in each suite but skips if already authenticated. Anonymous suites automatically log out if a previous session is found, ensuring a clean guest state.
+
+---
+
 ### Reports
 
 After a run, check:

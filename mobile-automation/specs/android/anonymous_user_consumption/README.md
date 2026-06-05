@@ -2,6 +2,8 @@
 
 End-to-end test suites for logged out users content consumption flows in the Sunbird Spark Android app.
 
+**Session handling:** Each suite auto-detects if a user is already logged in via `ensureAnonymous()` and logs out before running, ensuring a clean guest state regardless of previous test runs (`appium:noReset: true` preserves session data between suites).
+
 ---
 
 ## **E2E Suite 1: Anonymous Home Page Discovery (Content Playlists & Browse)**

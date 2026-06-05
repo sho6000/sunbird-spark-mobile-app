@@ -1,6 +1,9 @@
-import { verifyAnonymous, assertNoLoginPrompt } from '../../../fixtures/verify-anonymous.fixture';
+import { verifyAnonymous, assertNoLoginPrompt, ensureAnonymous } from '../../../fixtures/verify-anonymous.fixture';
 
 describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09, TC_07, TC_08)', () => {
+  before(async () => {
+      await ensureAnonymous(browser);
+  });
 
   async function tapExploreTab() {
     const explore = await browser.$('//android.widget.Button[@content-desc="Explore" or @text="Explore"]');
