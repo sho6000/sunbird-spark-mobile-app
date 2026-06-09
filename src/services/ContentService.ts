@@ -14,7 +14,8 @@ const DEFAULT_CONTENT_FIELDS = [
   'mimeType', 'name', 'originData', 'osId', 'owner', 'pkgVersion', 'publisher',
   'questions', 'resourceType', 'scoreDisplayConfig', 'status', 'streamingUrl',
   'template', 'templateId', 'totalQuestions', 'totalScore', 'versionKey', 'visibility',
-  'year', 'primaryCategory', 'additionalCategories', 'interceptionPoints', 'interceptionType', 'downloadUrl'
+  'year', 'primaryCategory', 'additionalCategories', 'interceptionPoints', 'interceptionType', 'downloadUrl',
+  'launchFile','scoList'
 ];
 
 export class ContentService {

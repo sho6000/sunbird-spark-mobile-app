@@ -15,6 +15,7 @@ const ecmlMimeTypes = [
   'application/vnd.ekstep.ecml-archive',
   'application/vnd.ekstep.h5p-archive',
   'application/vnd.ekstep.html-archive',
+  'application/vnd.ekstep.scorm-archive',
 ];
 
 /** Shape of each item inside the manifest archive */
@@ -638,6 +639,7 @@ export class ImportService {
   private static readonly RENDERER_S3_FOLDERS: Record<string, string> = {
     'application/vnd.ekstep.h5p-archive': 'h5p',
     'application/vnd.ekstep.html-archive': 'html',
+    'application/vnd.ekstep.scorm-archive': 'scorm',
   };
 
   /**
