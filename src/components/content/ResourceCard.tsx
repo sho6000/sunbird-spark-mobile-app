@@ -27,6 +27,7 @@ const getMimeTypeKey = (mimeType?: string): string => {
             return 'mimeType.pdf';
         case 'application/epub':
             return 'mimeType.epub';
+        case 'application/vnd.ekstep.scorm-archive':
         case 'application/vnd.ekstep.html-archive':
             return 'mimeType.html';
         case 'application/vnd.ekstep.ecml-archive':

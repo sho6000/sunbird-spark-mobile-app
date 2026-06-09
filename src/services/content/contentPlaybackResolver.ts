@@ -109,12 +109,13 @@ export async function resolveContentForPlayer<T extends Record<string, any>>(
     // (e.g. .../bunny.webm/bunny.webm).
     const isH5pOrHtml = mime === 'application/vnd.ekstep.h5p-archive'
       || mime === 'application/vnd.ekstep.html-archive';
+    const isScorm = mime === 'application/vnd.ekstep.scorm-archive';
     const isEcml = mime === 'application/vnd.ekstep.ecml-archive';
 
     if (String(resolved.mimeType).startsWith('video/')) {
       // Video player: set streamingUrl to directory so player appends artifactUrl
       resolved.streamingUrl = toWebviewUrl(basePath);
-    } else if (isH5pOrHtml) {
+    } else if (isH5pOrHtml || isScorm) {
       // H5P/HTML: The renderer sets globalConfig.basepath = streamingUrl and the
       // htmlrenderer plugin uses basepath + "/index.html" as the iframe src.
       // After import, restructureForRenderer places files at:
