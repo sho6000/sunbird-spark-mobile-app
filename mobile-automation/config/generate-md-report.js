@@ -18,22 +18,23 @@ function escapeMd(text) {
 function parseJunitXml(xmlContent) {
     const suites = [];
 
-    const testsuiteRegex = /<testsuite[^>]*name="([^"]*)"[^>]*tests="(\d+)"[^>]*errors="(\d+)"[^>]*failures="(\d+)"[^>]*time="([^"]*)"[^>]*>/gs;
+    const testsuiteRegex = /<testsuite[^>]*>/gs;
     let suiteMatch;
 
     while ((suiteMatch = testsuiteRegex.exec(xmlContent)) !== null) {
-        const suiteName = suiteMatch[1];
-        const totalTests = parseInt(suiteMatch[2], 10);
-        const totalErrors = parseInt(suiteMatch[3], 10);
-        const totalFailures = parseInt(suiteMatch[4], 10);
-        const time = parseFloat(suiteMatch[5]);
+        const tag = suiteMatch[0];
+        const suiteName = tag.match(/\bname="([^"]*)"/)?.[1] || '';
+        const totalTests = parseInt(tag.match(/\btests="(\d+)"/)?.[1] || '0', 10);
+        const totalErrors = parseInt(tag.match(/\berrors="(\d+)"/)?.[1] || '0', 10);
+        const totalFailures = parseInt(tag.match(/\bfailures="(\d+)"/)?.[1] || '0', 10);
+        const time = parseFloat(tag.match(/\btime="([^"]*)"/)?.[1] || '0');
 
         const testCases = [];
 
         const suiteBlockEnd = xmlContent.indexOf('</testsuite>', suiteMatch.index);
         const suiteBlock = xmlContent.slice(suiteMatch.index, suiteBlockEnd + 12);
 
-        const testcaseRegex = /<testcase[^>]*name="([^"]*)"[^>]*classname="([^"]*)"[^>]*time="([^"]*)"[^>]*>/gs;
+        const testcaseRegex = /<testcase[^>]*>/gs;
         let tcMatch;
 
         const failureRegex = /<failure[^>]*message="([^"]*)"[^>]*>([\s\S]*?)<\/failure>/g;
@@ -45,9 +46,10 @@ function parseJunitXml(xmlContent) {
 
         let failureIndex = 0;
         while ((tcMatch = testcaseRegex.exec(suiteBlock)) !== null) {
-            const tcName = tcMatch[3] || tcMatch[1];
-            const tcClass = tcMatch[2];
-            const tcTime = parseFloat(tcMatch[3]);
+            const tcTag = tcMatch[0];
+            const tcName = tcTag.match(/\bname="([^"]*)"/)?.[1] || '';
+            const tcClass = tcTag.match(/\bclassname="([^"]*)"/)?.[1] || '';
+            const tcTime = parseFloat(tcTag.match(/\btime="([^"]*)"/)?.[1] || '0');
 
             const tcEndIndex = suiteBlock.indexOf('</testcase>', tcMatch.index);
             const tcBlock = suiteBlock.slice(tcMatch.index, tcEndIndex + 11);

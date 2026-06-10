@@ -4,11 +4,13 @@ SUNBIRD_PASSWORD=your-password
 SUNBIRD_USERNAME=YourUserName
 
 # ── Appium / Device Config ──
-APPIUM_PORT=4723
-DEVICE_NAME=Android GoogleAPI Emulator
-PLATFORM_VERSION=15
+APPIUM_PORT=4723 # Dont change unless required
+DEVICE_NAME=Android GoogleAPI Emulator 
+# Use 'adb devices' to get the exact name if using a real device
+# For emulators, the default is usually 'Android GoogleAPI Emulator'
+PLATFORM_VERSION=15 # Use 'adb shell getprop ro.build.version.release' to get the exact version for real devices
 APP_PATH=./app/android/app-debug.apk
-APP_UDID=emulator-5554
+APP_UDID=emulator-5554 # Use 'adb devices' to get the exact UDID for real devices
 
 # ── Advanced (optional) ──
 # Only needed if the home page shows more than 6 courses.

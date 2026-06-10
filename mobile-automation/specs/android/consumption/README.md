@@ -15,7 +15,7 @@ End-to-end test suites for authenticated content consumption flows in the Sunbir
 **Flow:** Personalised Content - In-Progress Items
 **Status:** PASS
 
-Verifies the Home tab's "Continue from where you left" and "In Progress Courses" sections. Logs in, scrolls to find all in-progress course cards, opens each course detail page, and checks that the course name and progress percentage match.
+Verifies the Home tab's "Continue from where you left" and "In Progress Courses" sections. Logs in, scrolls to find all in-progress course cards, opens each course detail page, and checks that the course name and progress percentage match. Bottom nav overlap is checked before clicking course cards (nudged up if within 100px of bottom). Ends with a summary of all processed courses.
 
 **Test Steps:**
 1. Login to the application
@@ -57,15 +57,20 @@ Opens a course with multiple content types (PDF, EPUB, Video, HTML, YouTube, H5P
 1. Login and open Explore tab
 2. Filter to different Content types
 3. Filter out Courses
-4. **PDF (TC_05):** Navigate through pages/slides, reach end, verify completion
-5. **ePub (TC_06):** Navigate through sections, finish, verify completion
-6. **Video MP4 (TC_07):** Start playback, wait until end, verify completion
-7. **Video webm (TC_11):** Play and complete, verify status update
+4. **PDF (TC_05):** Navigate through pages/slides, reach end, verify completion — loops up to 100× clicking next arrow (200ms pause, no page count)
+5. **ePub (TC_06):** Navigate through sections, finish, verify completion — up to 20 next-arrow clicks with 2s pauses
+6. **Video MP4/Webm (TC_07/TC_11):** Start playback and wait for "You just completed" screen (120s timeout, non-fatal on expiry)
+7. **YouTube (TC_09):** Double-tap at (75%×50%) up to 500× (~83min skip capacity) to fast-forward, then wait for completion
 8. **HTML.zip (TC_08):** Interact with content, complete, verify status
-9. **YouTube (TC_09):** Play video to completion, verify tracking
-10. **H5P (TC_10):** Complete interactions, verify activity completion
-11. **ECML (TC_12):** Navigate and complete, verify status
-12. ~~**Quml (TC_13):**~~ — Yet to be added
+9. **H5P (TC_10):** Uses Search (not filter) to find H5P cards, fills blank fields via ADB shell `input text`, verifies player opens (no completion wait)
+10. **ECML (TC_12):** Taps at (95.7%×52.7%) up to 15× with 3s pauses, clicks Submit button if present
+11. ~~**Quml (TC_13):**~~ — Yet to be added
+
+**Implementation notes:**
+- Content cards found by scanning all buttons and filtering out navigation labels (Home, Explore, My Learning, etc.)
+- Filter tracking uses `previouslySelected` variable to avoid overlapping selections
+- Play button tried with 3 fallback XPath patterns (content-desc → text → generic contains)
+- `waitForCompletion` polls for "You just completed" up to 120s, closes rating dialog, does not throw on timeout
 
 ### Suite 4 — Course Enrollment and Progress
 
@@ -75,25 +80,20 @@ Opens a course with multiple content types (PDF, EPUB, Video, HTML, YouTube, H5P
 **Prerequisite:** Has to be a new unenrolled course
 **Status:** NA
 
-Joins a course via batch selection, tracks progress before/after content consumption, syncs progress, and tests the "Leave course" flow.
+Joins a course via batch selection, consumes a single content item, verifies progress increased, then leaves the course.
 
 **Test Steps:**
 1. Login to the application
-2. Navigate to a course with multiple batches (TC_14)
-3. Open batch selection dialog
-4. Select a specific batch
-5. Join the course successfully
-6. **Track initial progress** (TC_15)
-7. Consume one or more lessons/content items (TC_15)
-8. Reopen course and verify progress percentage has increased (TC_15)
-9. Verify lesson shows updated completion status (TC_15)
-10. Continue consuming until reaching 100% completion
-11. Open course actions menu
-12. Click "Sync progress" and verify confirmation (TC_17)
-13. Navigate to another active course (< 100%)
-14. Open course actions menu
-15. Click "Leave course" (TC_18)
-16. Verify unenrollment success
+2. Navigate to Explore and apply "Courses" filter (TC_14)
+3. Scroll to find an unenrolled course card, sorted left-to-right, top-to-bottom
+4. Card is nudged up if hidden behind bottom nav (Y > 85% screen height)
+5. Open course, click "Join the Course", select first enabled batch
+6. Verify initial progress shows "Completed: 0%" (TC_15)
+7. Expand curriculum accordion, detect content type via two-step method (item metadata → player UI, defaults to 'video')
+8. Navigate content to completion using type-specific handler (PDF: 100× next-arrow, EPUB: 20× next-arrow, YouTube: double-tap, ECML: coordinate-tap, HTML: 2s pause, video: YouTube double-tap skip)
+9. Wait for "You just completed" screen, verify progress increased
+10. Open course actions menu, click "Leave course" — skipped if progress ≥ 100% (completed courses may hide the button) (TC_18)
+11. Verify "Join the Course" button is now visible (unenrollment success), or log skip if at 100%
 
 ### Suite 5 — Certificate Preview and Download
 
@@ -126,10 +126,16 @@ Traverses the My Learning bottom-nav tab (Active / Completed / Upcoming) and the
 **Test Steps:**
 1. Login with a user having courses in multiple states
 2. Navigate to My Learning page
-3. **Active Courses (TC_20):** Locate < 100% completion courses in "Active" section
+3. **Active Courses (TC_20):** Locate < 100% completion courses in "Active" section, parse via `extractPhase1Course` (format: "Name Name Completed: XX%")
 4. **Completed Courses (TC_20):** Locate 100% completion courses in "Completed" section
-5. **Upcoming Batches (TC_21):** Scroll to upcoming sections, verify cards with correct details
-6. **Verify from Profile (TC_22):** Navigate to Profile → "My Learning" tab, review all course cards and status labels, verify status matches actual completion state
+5. **Upcoming Batches (TC_21):** Check for "No upcoming courses yet." — non-fatal
+6. **Profile verification (TC_22):** Navigate to Profile → "My Learning", apply Ongoing/Completed/Not Started filters
+
+**Implementation notes:**
+- Phase 2 (`extractPhase2Course`) strips "Download Certificate"/"No Certificate" suffixes from course names
+- `exhaustFilter` starts with `scrollUp()` then scrolls down until no new courses (max 15 scrolls)
+- `scrollToAndTap` uses precision overlap calculation (nudges exact distance) instead of full-page swipes
+- Cross-verification is one-directional: Phase 1 courses must appear in Phase 2
 
 ### Suite 7 — User Reports
 
@@ -164,12 +170,20 @@ Tests the user consent prompt for data sharing when joining a course with a Pers
 
 2. **Data-driven approach recommended** for Suite 3 to test available content types dynamically
 
-3. **Prerequisites:**
+3. **Suite 4 content type detection:** Two-step method — first checks item metadata/keywords, then after tapping Play rechecks player UI elements (navigation arrows, YouTube elements, Submit button). Defaults to `'video'` if no player UI matches.
+
+4. **Suite 4 course selection:** Cards are sorted visually (Y then X) before clicking. Bottom nav overlap is handled by nudging the card up if within 85% of screen height.
+
+5. **Suite 4 100% guard:** If the single consumed content item brings progress to 100%, the "Leave Course" step is skipped since completed courses typically hide this option. The test logs the reason and passes without asserting unenrollment.
+
+6. **Suite 6 cross-verification:** One-directional (Phase 1 courses must appear in Phase 2). Phase 2 course names strip "Download Certificate" and "No Certificate" suffixes. `scrollToAndTap` uses precision overlap calculation instead of full-page swipes.
+
+6. **Prerequisites:**
    - Test data setup required for users with various course states
    - Content availability for all formats in Suite 3
    - Certificate-enabled courses for Suite 5
 
-~~4. **Parallel Execution:** Suites 1-8 are independent and can run in parallel for faster execution~~
+~~7. **Parallel Execution:** Suites 1-8 are independent and can run in parallel for faster execution~~
 
 ---
 

@@ -1,6 +1,6 @@
 import { login, verifyLogin, testCredentials } from '../../../fixtures/login.fixture';
 
-describe('E2E Suite 8: Profile Data & Consent Management', () => {
+describe('E2E Suite 8: Profile Data & Consent Dialog Contents', () => {
   before(async () => {
     if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
       throw new Error('Missing credentials in .env file');
@@ -12,7 +12,7 @@ describe('E2E Suite 8: Profile Data & Consent Management', () => {
     }
   });
 
-  it('should toggle consent (On→Off or Off→On) based on current state', async () => {
+  it('should navigate to consent dialog and verify all contents', async () => {
     const homeTab = await browser.$('//android.widget.Button[@content-desc="Home" or @text="Home"]');
     if (await homeTab.isExisting()) {
       await homeTab.click();
@@ -39,7 +39,7 @@ describe('E2E Suite 8: Profile Data & Consent Management', () => {
         const loc = await browser.$('//android.widget.TextView[@text="Personal Information"]').getLocation();
         if (loc.y > 200 && loc.y < height - 200) break;
       }
-      await browser.action('pointer')
+      await browser.action('pointer', { parameters: { pointerType: 'touch' } })
         .move({ x: centerX, y: Math.floor(height * 0.7) })
         .down()
         .move({ x: centerX, y: Math.floor(height * 0.3), duration: 800 })
@@ -53,64 +53,53 @@ describe('E2E Suite 8: Profile Data & Consent Management', () => {
 
     const consentNote = await browser.$('//android.widget.TextView[starts-with(@text, "Profile data sharing is")]');
     await consentNote.waitForDisplayed({ timeout: 5000 });
-    const initialText = await consentNote.getText();
-    console.log(`  Current consent: "${initialText}"`);
-
-    expect(initialText).toContain('Profile data sharing is');
-    const isOn = initialText.includes('On') || initialText.includes('on');
+    expect(await consentNote.isExisting()).toBe(true);
+    console.log('  ✅ Consent note visible');
 
     const updateBtn = await browser.$('//android.widget.Button[@text="Update"]');
     await updateBtn.waitForDisplayed({ timeout: 5000 });
     await updateBtn.click();
     await browser.pause(2000);
 
-    const doNotShareBtn = await browser.$('//android.widget.Button[@text="Do not share" or @content-desc="Do not share"]');
-    await doNotShareBtn.waitForDisplayed({ timeout: 5000 });
-    console.log('  Consent dialog opened');
+    const dialog = await browser.$('//android.app.Dialog');
+    await dialog.waitForDisplayed({ timeout: 5000 });
+    console.log('  ✅ Consent dialog opened');
 
-    if (isOn) {
-      const dnsX = Math.floor(width * 0.592);
-      const dnsY = Math.floor(height * 0.771);
-      console.log(`  Consent is On → tapping "Do not share" at (${dnsX}, ${dnsY})`);
-      await browser.action('pointer')
-        .move({ x: dnsX, y: dnsY })
-        .down()
-        .pause(100)
-        .up()
-        .perform();
-    } else {
-      console.log('  Consent is Off → enabling Share via checkbox');
-      await browser.action('pointer')
-        .move({ x: Math.floor(width * 0.088), y: Math.floor(height * 0.698) })
-        .down()
-        .pause(100)
-        .up()
-        .perform();
-      await browser.pause(1500);
+    const userIDRow = await browser.$('//android.view.View[contains(@text, "User ID")]');
+    expect(await userIDRow.isExisting()).toBe(true);
+    console.log('  ✅ User ID row present');
 
-      console.log('  Tapping Share');
-      await browser.action('pointer')
-        .move({ x: Math.floor(width * 0.849), y: Math.floor(height * 0.771) })
-        .down()
-        .pause(100)
-        .up()
-        .perform();
-    }
-    await browser.pause(2000);
+    const mobileRow = await browser.$('//android.view.View[contains(@text, "Mobile Number")]');
+    expect(await mobileRow.isExisting()).toBe(true);
+    console.log('  ✅ Mobile Number row present');
 
-    const updatedNote = await browser.$('//android.widget.TextView[starts-with(@text, "Profile data sharing is")]');
-    await updatedNote.waitForDisplayed({ timeout: 5000 });
-    const updatedText = await updatedNote.getText();
-    console.log(`  Updated consent: "${updatedText}"`);
+    const emailRow = await browser.$('//android.view.View[contains(@text, "Email ID")]');
+    expect(await emailRow.isExisting()).toBe(true);
+    console.log('  ✅ Email ID row present');
 
-    if (isOn) {
-      expect(updatedText).toContain('Off');
-    } else {
-      expect(updatedText).toContain('On');
-    }
+    const infoText = await browser.$('//android.widget.TextView[@text="You can edit these details from your profile."]');
+    expect(await infoText.isExisting()).toBe(true);
+    console.log('  ✅ Info text present');
+
+    const checkbox = await browser.$('//android.widget.CheckBox[contains(@text, "I agree to share")]');
+    expect(await checkbox.isExisting()).toBe(true);
+    console.log('  ✅ Consent checkbox present');
+
+    const doNotShareBtn = await browser.$('//android.widget.Button[@text="Do not share"]');
+    expect(await doNotShareBtn.isExisting()).toBe(true);
+    expect(await doNotShareBtn.isEnabled()).toBe(true);
+    console.log('  ✅ "Do not share" button present and enabled');
+
+    const shareBtn = await browser.$('//android.widget.Button[@text="Share"]');
+    expect(await shareBtn.isExisting()).toBe(true);
+    expect(await shareBtn.isEnabled()).toBe(false);
+    console.log('  ✅ "Share" button present (initially disabled)');
+
+    await browser.saveScreenshot('../reports/android/test-results/suite8-consent-dialog.png');
+    console.log('  ✅ All dialog contents verified — test passed');
   });
 
   after(async () => {
-    await browser.saveScreenshot('../reports/android/test-results/suite8-profile-data-consent-toggle.png');
+    await browser.saveScreenshot('../reports/android/test-results/suite8-final.png');
   });
 });

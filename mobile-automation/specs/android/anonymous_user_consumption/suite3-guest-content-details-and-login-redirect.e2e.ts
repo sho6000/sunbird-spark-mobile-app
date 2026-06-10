@@ -1,3 +1,4 @@
+
 import { verifyAnonymous, assertNoLoginPrompt, ensureAnonymous } from '../../../fixtures/verify-anonymous.fixture';
 
 describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09, TC_07, TC_08)', () => {
@@ -14,7 +15,7 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
   }
 
   async function tapProfileTab() {
-    const profile = await browser.$('//android.widget.Button[@content-desc="Profile"]');
+    const profile = await browser.$('//android.widget.Button[@content-desc="Profile" or @text="Profile"]');
     if (await profile.isExisting()) {
       await profile.click();
       await browser.pause(2000);
@@ -32,7 +33,7 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
 
     await tapExploreTab();
 
-    const filtersBtn = await browser.$('//android.widget.Button[@content-desc="Filters"]');
+    const filtersBtn = await browser.$('//android.widget.Button[@content-desc="Filters" or @text="Filters"]');
     await filtersBtn.waitForDisplayed({ timeout: 10000 });
     await filtersBtn.click();
     await browser.pause(1500);
@@ -43,7 +44,7 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
     await coursesCb.click();
     await browser.pause(500);
 
-    const closeBtn = await browser.$('//android.widget.Button[@content-desc="Close"]');
+    const closeBtn = await browser.$('//android.widget.Button[@content-desc="Close" or @text="Close"]');
     await closeBtn.waitForDisplayed({ timeout: 5000 });
     await closeBtn.click();
     await browser.pause(3000);
@@ -69,12 +70,12 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
     await letsGo.click();
     await browser.pause(3000);
 
-    const emailField = await browser.$('//android.widget.EditText[@resource-id="sign-in-email"]');
+    const emailField = await browser.$('//android.widget.EditText[@hint="Email ID / Mobile Number" or @resource-id="sign-in-email"]');
     await emailField.waitForDisplayed({ timeout: 5000 });
     expect(await emailField.isExisting()).toBe(true);
     console.log('  ✅ Email field on Sign In page');
 
-    const passwordField = await browser.$('//android.widget.EditText[@resource-id="sign-in-password"]');
+    const passwordField = await browser.$('//android.widget.EditText[@hint="Password" or @resource-id="sign-in-password"]');
     expect(await passwordField.isExisting()).toBe(true);
     console.log('  ✅ Password field on Sign In page');
 
@@ -83,12 +84,12 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
     console.log('  ✅ "Welcome to Sunbird!" heading');
     console.log('✅ "Let\'s Get Started" redirects to login as expected');
 
-    const backSignIn = await browser.$('//android.widget.Button[@content-desc="back"]');
+    const backSignIn = await browser.$('//android.widget.Button[@text="back" or @content-desc="back"]');
     if (await backSignIn.isExisting()) {
       await backSignIn.click();
       await browser.pause(3000);
     }
-    const backDetails = await browser.$('//android.widget.Button[@content-desc="Back"]');
+    const backDetails = await browser.$('//android.widget.Button[@text="Back" or @content-desc="Back"]');
     if (await backDetails.isExisting()) {
       await backDetails.click();
       await browser.pause(3000);
@@ -112,9 +113,10 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
     expect(await signInPrompt.isExisting()).toBe(true);
     console.log('✅ "Sign in to access your learning journey" text confirmed');
 
-    // Verify "My Learning" button does NOT exist in Profile page content area
-    const myLearningBtn = await browser.$('//android.widget.Button[@text="My Learning"]');
-    expect(await myLearningBtn.isExisting()).toBe(false);
+    // Line 115-117
+    const myLearningBtns = await browser.$$('//android.widget.Button[@content-desc="My Learning" or @text="My Learning"]');
+    // Only the bottom nav tab should exist (1), not an extra content-area button (2+)
+    expect(myLearningBtns.length).toBe(1);
     console.log('✅ No "My Learning" button on Profile page — validation passed');
 
 
@@ -122,7 +124,7 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
   });
 
   after('Screenshot', async () => {
-    await browser.saveScreenshot('./test-results/suite3-course-details.png');
+    await browser.saveScreenshot('../reports/android/test-results/suite3-course-details.png');
     console.log('✅ Screenshot saved');
   });
 
@@ -138,7 +140,7 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
 
     await tapExploreTab();
 
-    const filtersBtn = await browser.$('//android.widget.Button[@content-desc="Filters"]');
+    const filtersBtn = await browser.$('//android.widget.Button[@content-desc="Filters" or @text="Filters"]');
     await filtersBtn.waitForDisplayed({ timeout: 10000 });
     await filtersBtn.click();
     await browser.pause(1500);
@@ -149,7 +151,7 @@ describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09,
     await coursesCb.click();
     await browser.pause(500);
 
-    const closeBtn = await browser.$('//android.widget.Button[@content-desc="Close"]');
+    const closeBtn = await browser.$('//android.widget.Button[@content-desc="Close" or @text="Close"]');
     await closeBtn.waitForDisplayed({ timeout: 5000 });
     await closeBtn.click();
     await browser.pause(3000);

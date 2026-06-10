@@ -5,7 +5,7 @@
 
 export async function logout(browser: WebdriverIO.Browser): Promise<boolean> {
   try {
-    const profileTab = await browser.$('//android.widget.Button[@text="Profile"]');
+    const profileTab = await browser.$('//android.widget.Button[@content-desc="Profile" or @text="Profile"]');
     await profileTab.click();
     await browser.pause(2000);
 
@@ -20,7 +20,7 @@ export async function logout(browser: WebdriverIO.Browser): Promise<boolean> {
 
       await browser.saveScreenshot('../reports/android/test-results/after-signout.png');
 
-      const homeTab = await browser.$('//android.widget.Button[@text="Home"]');
+      const homeTab = await browser.$('//android.widget.Button[@content-desc="Home" or @text="Home"]');
       if (await homeTab.isExisting()) {
         await homeTab.click();
         await browser.pause(2000);

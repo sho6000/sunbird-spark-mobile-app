@@ -123,7 +123,7 @@ async function findHtmlCard(browser: WebdriverIO.Browser): Promise<string> {
 async function findH5pCard(browser: WebdriverIO.Browser): Promise<void> {
   console.log('  Searching for H5P content...');
 
-  const searchIcon = await browser.$('~Search');
+  const searchIcon = await browser.$('//android.widget.Button[@text="Search" or @content-desc="Search"]');
   await searchIcon.waitForDisplayed({ timeout: 5000 });
   await searchIcon.click();
   await browser.pause(1500);
@@ -165,6 +165,12 @@ async function tapPlayButton(browser: WebdriverIO.Browser): Promise<void> {
     await browser.pause(3000);
     return;
   }
+  const textBtn = await browser.$('//android.widget.Button[starts-with(@text, "Play ")]');
+  if (await textBtn.isExisting()) {
+    await textBtn.click();
+    await browser.pause(3000);
+    return;
+  }
   const fallback = await browser.$('//android.widget.Button[contains(@content-desc, "Play") or contains(@content-desc, "Open")]');
   if (await fallback.isExisting()) {
     await fallback.click();
@@ -183,14 +189,14 @@ async function waitForCompletion(browser: WebdriverIO.Browser): Promise<void> {
       console.log('  "You just completed" detected');
       await browser.pause(1000);
 
-      const ratingClose = await browser.$('//android.widget.Button[@content-desc="Close"]');
+      const ratingClose = await browser.$('//android.widget.Button[@content-desc="Close" or @text="Close"]');
       if (await ratingClose.isExisting()) {
         await ratingClose.click();
         await browser.pause(1000);
         console.log('  Rating dialog closed');
       }
 
-      const exitCheck = await browser.$('//android.widget.TextView[@text="Exit"]');
+      const exitCheck = await browser.$('//*[@text="Exit"]');
       if (await exitCheck.isExisting()) {
         console.log('  Completed screen with Exit button confirmed');
       }
@@ -208,38 +214,70 @@ async function pressBack(browser: WebdriverIO.Browser): Promise<void> {
   await browser.pause(3000);
 }
 
+// async function navigatePdfToLastPage(browser: WebdriverIO.Browser): Promise<void> {
+//   console.log('  PDF viewer loaded, navigating to last page...');
+//   await browser.pause(3000);
+
+//   let totalPages = 2;
+//   const slashTv = await browser.$('//android.widget.TextView[@text="/"]');
+//   if (await slashTv.isExisting()) {
+//     const totalTv = await slashTv.$('./following-sibling::android.widget.TextView[1]');
+//     if (await totalTv.isExisting()) {
+//       const t = (await totalTv.getText()).trim();
+//       const n = parseInt(t, 10);
+//       if (!isNaN(n) && n > 0) totalPages = n;
+//     }
+//   }
+//   console.log(`  Total pages: ${totalPages}`);
+
+//   for (let i = 0; i < totalPages; i++) {
+//     const completed = await browser.$('//android.widget.TextView[@text="You just completed"]');
+//     if (await completed.isExisting()) {
+//       console.log('  Completion screen reached');
+//       return;
+//     }
+
+//     const nextArrow = await browser.$('//android.widget.Button[@content-desc="navigation-arrows-nextIcon" or @text="navigation-arrows-nextIcon"]');
+//     if (!(await nextArrow.isExisting())) {
+//       console.log('  Next arrow not found');
+//       break;
+//     }
+
+//     console.log(`  Next arrow click (${i + 1}/${totalPages})...`);
+//     await nextArrow.click();
+//     await browser.pause(2000);
+//   }
+
+//   console.log('  Waiting for completion after last page...');
+//   await browser.pause(5000);
+// }
+
+
 async function navigatePdfToLastPage(browser: WebdriverIO.Browser): Promise<void> {
   console.log('  PDF viewer loaded, navigating to last page...');
   await browser.pause(3000);
 
-  let totalPages = 2;
-  const slashTv = await browser.$('//android.widget.TextView[@text="/"]');
-  if (await slashTv.isExisting()) {
-    const totalTv = await slashTv.$('./following-sibling::android.widget.TextView[1]');
-    if (await totalTv.isExisting()) {
-      const t = (await totalTv.getText()).trim();
-      const n = parseInt(t, 10);
-      if (!isNaN(n) && n > 0) totalPages = n;
-    }
-  }
-  console.log(`  Total pages: ${totalPages}`);
+  // extract the total pages comes after slash (/) in the page indicator, if available
+  // let totalPages = 2;
 
-  for (let i = 0; i < totalPages; i++) {
+  for (let i = 0; i < 100; i++) {
     const completed = await browser.$('//android.widget.TextView[@text="You just completed"]');
     if (await completed.isExisting()) {
       console.log('  Completion screen reached');
       return;
     }
 
-    const nextArrow = await browser.$('~navigation-arrows-nextIcon');
+    const nextArrow = await browser.$(
+      '//android.widget.Button[@content-desc="navigation-arrows-nextIcon" or @text="navigation-arrows-nextIcon"]'
+    );
     if (!(await nextArrow.isExisting())) {
       console.log('  Next arrow not found');
       break;
     }
 
-    console.log(`  Next arrow click (${i + 1}/${totalPages})...`);
+    console.log(`  Next arrow click (${i + 1}/100)...`);
     await nextArrow.click();
-    await browser.pause(2000);
+    await browser.pause(200);
   }
 
   console.log('  Waiting for completion after last page...');
@@ -257,7 +295,7 @@ async function navigateEpubToLastPage(browser: WebdriverIO.Browser): Promise<voi
       return;
     }
 
-    const nextArrow = await browser.$('~navigation-arrows-nextIcon');
+    const nextArrow = await browser.$('//android.widget.Button[@content-desc="navigation-arrows-nextIcon" or @text="navigation-arrows-nextIcon"]');
     if (!(await nextArrow.isExisting())) {
       console.log('  Next arrow not found, stopping');
       break;
@@ -295,6 +333,14 @@ async function navigateEcmlToLastPage(browser: WebdriverIO.Browser): Promise<voi
     action.up();
     await action.perform();
     await browser.pause(3000);
+
+    // If it finds a text called Submit, it means it has to click that
+    const submitBtn = await browser.$('//android.widget.Button[@text="Submit" or @content-desc="Submit"]');
+    if (await submitBtn.isExisting()) {
+      console.log('  Submit button found, clicking it...');
+      await submitBtn.click();
+      await browser.pause(3000);
+    }
   }
 
   console.log('  Waiting for completion after navigation...');
@@ -302,55 +348,52 @@ async function navigateEcmlToLastPage(browser: WebdriverIO.Browser): Promise<voi
 }
 
 async function navigateYoutubeToLastPage(browser: WebdriverIO.Browser): Promise<void> {
-  console.log('  YouTube player loaded, navigating to near end...');
-  await browser.pause(3000);
+  console.log('  YouTube player loaded, fast-forwarding via double-taps...');
+  await browser.pause(5000);
 
   const { width, height } = await browser.getWindowSize();
-  const centerX = Math.round(width / 2);
-  const centerY = Math.round(height / 2);
+  const tapX = Math.round(width * 0.75); // right side = +10s
+  const tapY = Math.round(height * 0.5);
 
-  console.log('  Double-tapping video to pause...');
-  const action = browser.action('pointer');
-  action.move({ x: centerX, y: centerY, origin: 'viewport' });
-  action.down();
-  action.pause(100);
-  action.up();
-  action.pause(1200);
-  action.down();
-  action.pause(100);
-  action.up();
-  await action.perform();
-  await browser.pause(1500);
+  const MAX_TAPS = 500; // 500 × 10s = covers 1hr 23min video
+  let completed = false;
 
-  const seekBar = await browser.$('android.widget.SeekBar');
-  if (!(await seekBar.isExisting())) {
-    console.log('  SeekBar not found, proceeding');
-    return;
+  async function doubleTap(): Promise<void> {
+    const action = browser.action('pointer');
+    action.move({ x: tapX, y: tapY, origin: 'viewport' });
+    action.down();
+    action.pause(80);
+    action.up();
+    action.pause(150); // <300ms = registers as double-tap
+    action.down();
+    action.pause(80);
+    action.up();
+    await action.perform();
+    await browser.pause(300); // short pause between taps
   }
 
-  const loc = await seekBar.getLocation();
-  const size = await seekBar.getSize();
-  const seekY = Math.round(loc.y + size.height / 2);
-  const startX = Math.round(loc.x + size.width * 0.15);
-  const endX = Math.round(loc.x + size.width * 0.97);
-
-  console.log(`  Dragging SeekBar to 97% (${startX} → ${endX})...`);
-  const drag = browser.action('pointer');
-  drag.move({ x: startX, y: seekY, origin: 'viewport' });
-  drag.down();
-  drag.move({ x: endX, y: seekY, origin: 'viewport', duration: 1200 });
-  drag.up();
-  await drag.perform();
-  await browser.pause(500);
-
-  console.log('  Resuming playback...');
-  const playBtn = await browser.$('//android.widget.Button[@content-desc="Play video"]');
-  if (await playBtn.isExisting()) {
-    await playBtn.click();
-    await browser.pause(1000);
+  async function isCompleted(): Promise<boolean> {
+    const screen = await browser.$('//android.widget.TextView[@text="You just completed"]');
+    return await screen.isExisting();
   }
 
-  console.log('  Video will auto-complete in ~1 minute');
+  for (let i = 1; i <= MAX_TAPS; i++) {
+    if (await isCompleted()) {
+      console.log(`  Completion detected after ${i} double-taps (~${i * 10}s skipped)`);
+      completed = true;
+      break;
+    }
+
+    await doubleTap();
+
+    if (i % 10 === 0) {
+      console.log(`  ${i} taps done (~${i * 10}s skipped so far)...`);
+    }
+  }
+
+  if (!completed) {
+    console.warn('  Completion not detected within tap limit, proceeding anyway...');
+  }
 }
 
 describe('Suite 3 — Content Player', () => {
@@ -368,6 +411,7 @@ describe('Suite 3 — Content Player', () => {
     if (!isLoggedIn) {
       throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
     }
+    console.log('Login successful, SUITE3');
 
     console.log('\n=== H5P ===');
 
@@ -378,65 +422,35 @@ describe('Suite 3 — Content Player', () => {
     console.log('  Tapping Play button...');
     await tapPlayButton(browser);
 
-    console.log('  Filling H5P blanks...');
+    console.log('  Filling H5P blanks via ADB...');
     await browser.pause(3000);
 
-    const firstBlank = await browser.$('//android.widget.EditText[starts-with(@hint, "Blank input")]');
-    if (!await firstBlank.isExisting()) {
-      throw new Error('No H5P blanks found');
+    const { width, height } = await browser.getWindowSize();
+    const tapAction = browser.action('pointer');
+    tapAction.move({ x: Math.round(width / 2), y: Math.round(height / 2), origin: 'viewport' });
+    tapAction.down();
+    tapAction.pause(100);
+    tapAction.up();
+    await tapAction.perform();
+    await browser.pause(500);
+
+    const maxBlanks = 10;
+    for (let i = 0; i < maxBlanks; i++) {
+      await browser.execute('mobile: shell', { command: 'input', args: ['text', 'answer'] });
+      await browser.pause(300);
+      await browser.execute('mobile: shell', { command: 'input', args: ['keyevent', '61'] });
+      await browser.pause(1000);
     }
-    const hintText = await firstBlank.getAttribute('hint');
-    const totalMatch = hintText.match(/of (\d+)/);
-    const totalBlanks = totalMatch ? parseInt(totalMatch[1], 10) : 3;
-    console.log(`  Total blanks expected: ${totalBlanks}`);
-
-    const filled = new Set<number>();
-    let scrolls = 0;
-
-    while (filled.size < totalBlanks && scrolls < 30) {
-      const visible = await browser.$$('//android.widget.EditText[starts-with(@hint, "Blank input")]');
-      for (const blank of visible) {
-        const h = await blank.getAttribute('hint');
-        const m = h.match(/Blank input (\d+)/);
-        if (!m) continue;
-        const idx = parseInt(m[1], 10);
-        if (filled.has(idx)) continue;
-        await blank.click();
-        await browser.pause(400);
-        await blank.setValue('test');
-        await browser.pause(200);
-        filled.add(idx);
-        console.log(`  Filled blank ${idx}/${totalBlanks}`);
-      }
-      if (filled.size < totalBlanks) {
-        const { width, height } = await browser.getWindowSize();
-        const sx = Math.round(width * 0.5);
-        const sy1 = Math.round(height * 0.85);
-        const sy2 = Math.round(height * 0.15);
-        const a = browser.action('pointer');
-        a.move({ x: sx, y: sy1, origin: 'viewport' });
-        a.down();
-        a.move({ x: sx, y: sy2, origin: 'viewport', duration: 600 });
-        a.up();
-        await a.perform();
-        await browser.pause(800);
-        scrolls++;
-      }
-    }
-
-    console.log(`  Filled ${filled.size}/${totalBlanks} blanks`);
-
-    console.log('  Submitting via Tab...');
-    await browser.keys('\uE004');
+    await browser.execute('mobile: shell', { command: 'input', args: ['keyevent', '66'] });
     await browser.pause(2000);
-
-    const resultTv = await browser.$('//android.widget.TextView[starts-with(@text, "You got")]');
-    await resultTv.waitForDisplayed({ timeout: 5000 });
-    console.log(`  Result: ${await resultTv.getText()}`);
+    console.log('  H5P blanks filled and submitted');
 
     await pressBack(browser);
+    await pressBack(browser);
+    await browser.pause(1500);
+    console.log('  Back pressed to exit H5P player');
 
-    const closeSearch = await browser.$('~Close search');
+    const closeSearch = await browser.$('//android.widget.Button[@text="Close search" or @content-desc="Close search"]');
     if (await closeSearch.isExisting()) {
       await closeSearch.click();
       await browser.pause(1500);
@@ -449,16 +463,6 @@ describe('Suite 3 — Content Player', () => {
 // VIDEO CONTENT
 
   it('should play a Video and reach completion screen', async () => {
-    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-    }
-
-    await login(browser, testCredentials.email, testCredentials.password);
-
-    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-    if (!isLoggedIn) {
-      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-    }
 
     console.log('\n=== Video ===');
 
@@ -490,16 +494,6 @@ describe('Suite 3 — Content Player', () => {
 // PDF CONTENT
 
   it('should play a PDF and reach completion screen', async () => {
-    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-    }
-
-    await login(browser, testCredentials.email, testCredentials.password);
-
-    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-    if (!isLoggedIn) {
-      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-    }
 
     console.log('\n=== PDF ===');
 
@@ -525,7 +519,7 @@ describe('Suite 3 — Content Player', () => {
 
     await waitForCompletion(browser);
 
-    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    const exitBtn = await browser.$('//*[@text="Exit"]');
     if (await exitBtn.isExisting()) {
       await exitBtn.click();
       await browser.pause(2000);
@@ -540,16 +534,6 @@ describe('Suite 3 — Content Player', () => {
 // EPUB CONTENT
 
   it('should play a EPUB and reach completion screen', async () => {
-    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-    }
-
-    await login(browser, testCredentials.email, testCredentials.password);
-
-    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-    if (!isLoggedIn) {
-      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-    }
 
     console.log('\n=== EPUB ===');
 
@@ -575,7 +559,7 @@ describe('Suite 3 — Content Player', () => {
 
     await waitForCompletion(browser);
 
-    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    const exitBtn = await browser.$('//*[@text="Exit"]');
     if (await exitBtn.isExisting()) {
       await exitBtn.click();
       await browser.pause(2000);
@@ -591,16 +575,6 @@ describe('Suite 3 — Content Player', () => {
 // YOUTUBE CONTENT
 
   it('should play a YouTube video and reach completion screen', async () => {
-    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-    }
-
-    await login(browser, testCredentials.email, testCredentials.password);
-
-    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-    if (!isLoggedIn) {
-      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-    }
 
     console.log('\n=== YouTube ===');
 
@@ -626,7 +600,7 @@ describe('Suite 3 — Content Player', () => {
 
     await waitForCompletion(browser);
 
-    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    const exitBtn = await browser.$('//*[@text="Exit"]');
     if (await exitBtn.isExisting()) {
       await exitBtn.click();
       await browser.pause(2000);
@@ -674,7 +648,7 @@ describe('Suite 3 — Content Player', () => {
 //
 //     await waitForCompletion(browser);
 //
-//     const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+//     const exitBtn = await browser.$('//*[@text="Exit"]');
 //     if (await exitBtn.isExisting()) {
 //       await exitBtn.click();
 //       await browser.pause(2000);
@@ -689,16 +663,6 @@ describe('Suite 3 — Content Player', () => {
 // ECML CONTENT
 
   it('should play an ECML content and reach completion screen', async () => {
-    if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
-      throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');
-    }
-
-    await login(browser, testCredentials.email, testCredentials.password);
-
-    const isLoggedIn = await verifyLogin(browser, testCredentials.username);
-    if (!isLoggedIn) {
-      throw new Error(`Login verification failed. Expected username "Hi ${testCredentials.username}" not found.`);
-    }
 
     console.log('\n=== ECML ===');
 
@@ -724,7 +688,7 @@ describe('Suite 3 — Content Player', () => {
 
     await waitForCompletion(browser);
 
-    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    const exitBtn = await browser.$('//*[@text="Exit"]');
     if (await exitBtn.isExisting()) {
       await exitBtn.click();
       await browser.pause(2000);

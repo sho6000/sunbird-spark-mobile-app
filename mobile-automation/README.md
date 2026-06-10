@@ -4,6 +4,10 @@ End-to-end test suite for Android mobile apps using WebdriverIO + Appium. Design
 
 ---
 
+> Emulator Recommendation: Use a Pixel 7 API 35 image for best compatibility. Real devices can be used but ensure correct `DEVICE_NAME`, `PLATFORM_VERSION`, and `APP_UDID` in `.env`.
+
+---
+
 ## Quick Start
 
 ```bash
@@ -16,6 +20,45 @@ End-to-end test suite for Android mobile apps using WebdriverIO + Appium. Design
 # 3. Run all tests (Appium is auto-managed)
 cd config && npm run test
 ```
+---
+
+## Project Structure
+
+```
+mobile-automation/
+├── app/
+│   └── android/app-debug.apk      # Android app binary
+├── config/
+│   ├── package.json                # Dependencies & scripts
+│   ├── tsconfig.json               # TypeScript config
+│   └── wdio.conf.ts                # WebdriverIO config
+├── data/
+│   ├── .envExample                 # Template for .env
+│   ├── users.ts                    # Test user definitions
+│   └── testdata.ts                 # Course/content test data
+├── fixtures/
+│   ├── login.fixture.ts            # Login + verify helpers
+│   ├── logout.fixture.ts           # Logout helper
+│   └── scroll.fixture.ts           # Scroll-until-text helper
+├── specs/
+│   └── android/
+│       ├── anonymous_user_consumption/  # Guest-mode tests (see README.md inside)
+│       └── consumption/                 # Authenticated consumption tests (see README.md inside)
+│           ├── suite1-home-in-progress-courses.e2e.ts
+│           ├── suite2-explore-content-filtering.e2e.ts
+│           ├── suite3-multi-format-content-player.e2e.ts
+│           ├── suite4-course-enrollment-and-progress.e2e.ts
+│           ├── suite5-certificate-preview-and-download.e2e.ts
+│           └── suite6-my-learning-cross-verification.e2e.ts
+├── reports/
+│   └── android/
+│       ├── test-results/               # Test output & screenshots
+│       └── screenshots/
+├── install.sh                       # One-click setup
+└── README.md                        # This file
+```
+
+
 
 ---
 
@@ -85,43 +128,6 @@ For additional Appium capabilities (e.g. `appium:udid`, `appium:noReset`), edit 
 
 ---
 
-## Project Structure
-
-```
-mobile-automation/
-├── app/
-│   └── android/app-debug.apk      # Android app binary
-├── config/
-│   ├── package.json                # Dependencies & scripts
-│   ├── tsconfig.json               # TypeScript config
-│   └── wdio.conf.ts                # WebdriverIO config
-├── data/
-│   ├── .envExample                 # Template for .env
-│   ├── users.ts                    # Test user definitions
-│   └── testdata.ts                 # Course/content test data
-├── fixtures/
-│   ├── login.fixture.ts            # Login + verify helpers
-│   ├── logout.fixture.ts           # Logout helper
-│   └── scroll.fixture.ts           # Scroll-until-text helper
-├── specs/
-│   └── android/
-│       ├── anonymous_user_consumption/  # Guest-mode tests (see README.md inside)
-│       └── consumption/                 # Authenticated consumption tests (see README.md inside)
-│           ├── suite1-home-in-progress-courses.e2e.ts
-│           ├── suite2-explore-content-filtering.e2e.ts
-│           ├── suite3-multi-format-content-player.e2e.ts
-│           ├── suite4-course-enrollment-and-progress.e2e.ts
-│           ├── suite5-certificate-preview-and-download.e2e.ts
-│           └── suite6-my-learning-cross-verification.e2e.ts
-├── reports/
-│   └── android/
-│       ├── test-results/               # Test output & screenshots
-│       └── screenshots/
-├── install.sh                       # One-click setup
-└── README.md                        # This file
-```
-
----
 ## Running Tests
 
 ```bash
@@ -136,7 +142,14 @@ cd config && npm run report
 
 # Single suite (temporary — edit specs array in wdio.conf.ts)
 # or use --spec flag:
-npx wdio run ./config/wdio.conf.ts --spec ./specs/android/consumption/suite1-home-in-progress-courses.e2e.ts
+cd config
+
+npx wdio run ./wdio.conf.ts --spec ../specs/android/consumption/suite1-home-in-progress-courses.e2e.ts
+
+npx wdio run ./wdio.conf.ts --spec ../specs/android/anonymous_user_consumption/suite1-guest-home-and-explore-browsing.e2e.ts
+
+# If you want individual reports run the script seperately and
+# run the ``npm run report`` after the script is executed
 ```
 
 ### Session Handling

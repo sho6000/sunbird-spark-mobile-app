@@ -6,29 +6,113 @@ function extractPhase1Course(buttonText: string): { name: string; progress: numb
     return match ? { name: match[1].trim(), progress: parseInt(match[2], 10) } : null;
 }
 
+async function scrollToAndTap(
+  browser: WebdriverIO.Browser,
+  selector: string,
+  label: string,
+  tap: boolean = true
+): Promise<WebdriverIO.Element> {
+  const { width, height } = await browser.getWindowSize();
+  const swipeX = Math.round(width / 2);
+
+  const safeTop    = Math.round(height * 0.10);
+  const safeBottom = Math.round(height * 0.85);
+  const maxSwipes  = 15;
+
+  for (let i = 0; i < maxSwipes; i++) {
+    const el = await browser.$(selector);
+
+    if (await el.isExisting()) {
+      const loc  = await el.getLocation();
+      const size = await el.getSize();
+
+      const elTop     = loc.y;
+      const elBottom  = loc.y + size.height;
+      const elCenter  = loc.y + Math.round(size.height / 2);
+      const elCenterX = Math.round(loc.x + size.width / 2);
+
+      console.log(`  "${label}" found at Y=${elTop}–${elBottom} (safe zone: ${safeTop}–${safeBottom})`);
+
+      if (elTop >= safeTop && elBottom <= safeBottom) {
+        if (tap) {
+          console.log(`  "${label}" fully visible, tapping...`);
+          const tapAction = browser.action('pointer');
+          tapAction.move({ x: elCenterX, y: elCenter, origin: 'viewport' });
+          tapAction.down();
+          tapAction.pause(80);
+          tapAction.up();
+          await tapAction.perform();
+          await browser.pause(2000);
+        } else {
+          console.log(`  "${label}" fully visible, returning without tap...`);
+        }
+        return el;
+      }
+
+      if (elBottom > safeBottom) {
+        const overlap = elBottom - safeBottom + 40;
+        const nudge = browser.action('pointer');
+        nudge.move({ x: swipeX, y: Math.round(height * 0.6), origin: 'viewport' });
+        nudge.down();
+        nudge.pause(100);
+        nudge.move({ x: swipeX, y: Math.round(height * 0.6) - overlap, origin: 'viewport', duration: 600 });
+        nudge.up();
+        await nudge.perform();
+        await browser.pause(800);
+        continue;
+      }
+
+      if (elTop < safeTop) {
+        const overlap = safeTop - elTop + 40;
+        const nudge = browser.action('pointer');
+        nudge.move({ x: swipeX, y: Math.round(height * 0.4), origin: 'viewport' });
+        nudge.down();
+        nudge.pause(100);
+        nudge.move({ x: swipeX, y: Math.round(height * 0.4) + overlap, origin: 'viewport', duration: 600 });
+        nudge.up();
+        await nudge.perform();
+        await browser.pause(800);
+        continue;
+      }
+    }
+
+    console.log(`  "${label}" not found, swiping up (${i + 1}/${maxSwipes})...`);
+    const swipe = browser.action('pointer');
+    swipe.move({ x: swipeX, y: Math.round(height * 0.7), origin: 'viewport' });
+    swipe.down();
+    swipe.pause(100);
+    swipe.move({ x: swipeX, y: Math.round(height * 0.3), origin: 'viewport', duration: 500 });
+    swipe.up();
+    await swipe.perform();
+    await browser.pause(1000);
+  }
+
+  throw new Error(`"${label}" not visible in safe zone after ${maxSwipes} attempts`);
+}
+
 // Phase 2 profile filter format:
 //   <status> <name> [extra] progressRingLabel <N>% <name> [suffix]
 // Strategy: extract name as the common prefix of the text before
 // progressRingLabel and the text after the percentage. This naturally
 // discards intermediate text (e.g. "Due Date") and trailing suffixes
 // (e.g. "No Certificate") without needing to know the exact keywords.
-function extractPhase2Course(buttonText: string): { status: string; name: string; progress: number } | null {
+ function extractPhase2Course(buttonText: string): { status: string; name: string; progress: number } | null {
     const match = buttonText.match(/^(Ongoing|Completed|Not Started)\s+(.+?)\s+progressRingLabel\s+(\d+)%\s+(.+)$/);
     if (!match) return null;
 
     const status = match[1];
-    const before = match[2].trim();
     const progress = parseInt(match[3], 10);
-    const after = match[4].trim();
+    let after = match[4].trim();
 
-    // Find the common prefix of before and after (this is the course name)
-    let i = 0;
-    while (i < before.length && i < after.length && before[i] === after[i]) i++;
-    if (i === 0) return null;
-    const name = before.substring(0, i).trim();
-    if (name.length === 0) return null;
+    // Remove known trailing suffixes
+    for (const suffix of ['Download Certificate', 'No Certificate']) {
+        if (after.endsWith(suffix)) {
+            after = after.substring(0, after.length - suffix.length).trim();
+            break;
+        }
+    }
 
-    return { status, name, progress };
+    return after.length > 0 ? { status, name: after, progress } : null;
 }
 
 describe('E2E Suite 6: My Learning Dashboard Complete View', () => {
@@ -115,20 +199,35 @@ describe('E2E Suite 6: My Learning Dashboard Complete View', () => {
         await profileTab.click();
         await browser.pause(2000);
 
-        const myLearningBtn = await browser.$('//android.widget.Button[@content-desc="My Learning" or @text="My Learning"]');
-        await myLearningBtn.waitForDisplayed({ timeout: 10000 });
-        await myLearningBtn.click();
+        // Tap My Learning in the profile list
+        await scrollToAndTap(browser,'//android.widget.Button[@content-desc="My Learning" or @text="My Learning"]','My Learning');
         await browser.pause(2000);
+
+        // const myLearningBtn = await browser.$('//android.widget.Button[@content-desc="My Learning" or @text="My Learning"]');
+        // await myLearningBtn.waitForDisplayed({ timeout: 10000 });
+        // await myLearningBtn.click();
+        // await browser.pause(2000);
 
         async function scrollDown(): Promise<void> {
             await browser.action('pointer')
                 .move({ x: Math.floor(windowSize.width / 2), y: Math.floor(windowSize.height * 0.65) })
                 .down()
-                .move({ x: Math.floor(windowSize.width / 2), y: Math.floor(windowSize.height * 0.40) })
+                .move({ x: Math.floor(windowSize.width / 2), y: Math.floor(windowSize.height * 0.20) , duration: 800 })
                 .up()
                 .perform();
-            await browser.pause(800);
+            await browser.pause(1000);
         }
+
+        async function scrollUp(): Promise<void> {
+            await browser.action('pointer')
+                .move({ x: Math.floor(windowSize.width / 2), y: Math.floor(windowSize.height * 0.40) })
+                .down()
+                .move({ x: Math.floor(windowSize.width / 2), y: Math.floor(windowSize.height * 0.65)})
+                .up()
+                .perform();
+            await browser.pause(1000);
+        }
+
 
         async function selectFilter(filterName: string): Promise<void> {
             const filtersBtn = await browser.$('//android.widget.Button[@content-desc="Filters" or @text="Filters"]');
@@ -160,10 +259,14 @@ describe('E2E Suite 6: My Learning Dashboard Complete View', () => {
             await selectFilter(filterName);
             await browser.pause(1000);
 
+            // Scroll to top first (ensures we're at the beginning of the list)
+            await scrollUp();
+            await browser.pause(1000);
+
             const allCourses = new Map<string, { status: string; name: string; progress: number }>();
             let prevSize = -1;
 
-            for (let i = 0; i < 30; i++) {
+            for (let i = 0; i < 15; i++) {
                 const visible = await collectVisiblePhase2Courses();
                 for (const [name, data] of visible) {
                     allCourses.set(name, data);

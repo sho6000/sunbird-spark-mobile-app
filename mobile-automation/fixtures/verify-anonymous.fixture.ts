@@ -1,7 +1,7 @@
 import { logout } from './logout.fixture';
 
 export async function verifyAnonymous(browser: WebdriverIO.Browser): Promise<boolean> {
-    const profileTab = await browser.$('//android.widget.Button[@content-desc="Profile"]');
+    const profileTab = await browser.$('//android.widget.Button[@content-desc="Profile" or @text="Profile"]');
     await profileTab.click();
     await browser.pause(2000);
 

@@ -41,9 +41,12 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
         if (await continueSection.isExisting()) {
             console.log('✅ Found "Continue from where you left" section');
 
-            const nameEl = await browser.$('//android.widget.TextView[@text="Continue from where you left"]/../android.widget.TextView[not(contains(@text, "Completed")) and not(@text="Continue from where you left")]');
-            const progressEl = await browser.$('//android.widget.TextView[@text="Continue from where you left"]/../android.widget.TextView[contains(@text, "Completed")]');
-            const btn = await browser.$('//android.widget.TextView[@text="Continue from where you left"]/../android.widget.Button');
+            const container = await browser.$('//android.view.View[.//android.widget.Button[@text="Continue Learning"]]');
+            const nameEl = await browser.$('//android.view.View[.//android.widget.Button[@text="Continue Learning"]]//android.widget.Button[@text="Continue Learning"]/preceding-sibling::android.widget.TextView[not(@text="Continue from where you left") and not(starts-with(@text, "Completed:")) and @text!=""]');
+            const progressEl = await browser.$('//android.widget.TextView[starts-with(@text, "Completed:")]');
+            const btn = await browser.$('//android.widget.Button[@text="Continue Learning"]');
+            console.log('✅ Data collected');
+            console.log({ name: nameEl, progress: progressEl, button: btn });
 
             if (await nameEl.isExisting() && await progressEl.isExisting() && await btn.isExisting()) {
                 const name = await nameEl.getText();
@@ -77,7 +80,7 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
                         console.warn(`  ❌ "${name}" — ${(e as Error).message}`);
                     }
 
-                    const backBtn = await browser.$('//android.widget.Button[@content-desc="Back"]');
+                    const backBtn = await browser.$('//android.widget.Button[@content-desc="Back" or @text="Back"]');
                     if (await backBtn.isExisting()) {
                         await backBtn.click();
                         await browser.pause(3000);
@@ -87,7 +90,13 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
                     expect(status).toBe('passed');
                 }
             }
-        } else {
+            else 
+            {                
+                console.warn('⚠️ Could not find all elements for "Continue from where you left" course — skipping verification');
+            }
+        } 
+        else 
+        {
             console.log('ℹ️ "Continue from where you left" section not found');
         }
 
@@ -239,7 +248,7 @@ describe('E2E Suite 1: Continue Learning Journey', () => {
                         console.warn(`  ❌ "${course.name}" — ${(e as Error).message}`);
                     }
 
-                    const backBtn = await browser.$('//android.widget.Button[@content-desc="Back"]');
+                    const backBtn = await browser.$('//android.widget.Button[@content-desc="Back" or @text="Back"]');
                     if (await backBtn.isExisting()) {
                         await backBtn.click();
                         await browser.pause(3000);

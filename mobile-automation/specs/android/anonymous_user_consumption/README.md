@@ -63,55 +63,32 @@ Anonymous user filters and consumes multiple content formats from Explore page w
 
 ### Combined Test Steps:
 
+**Scope:** 3 content types only — PDF, ECML, Video (no H5P, EPUB, YouTube, HTML)
+
 **Part A: PDF Content Consumption (TC_02)**
 1. Access Explore page as anonymous user
-2. Click Filter option
-3. Select "PDF" content type filter
-4. View filtered PDF content cards
-5. Tap on any PDF content card
-6. Verify PDF content player opens successfully
-7. Verify PDF displays properly:
-   - Pages load correctly
-   - Page navigation controls present
-   - Text/images render clearly
-8. Navigate through 2-3 PDF pages
-9. Reach end of PDF
-10. Close content player and return to Explore
+2. Click Filter option, select "PDF" content type
+3. Tap on first PDF card, tap Play
+4. PDF navigation reads actual page count from "/" indicator, clicks next-arrow exactly that many times
+5. Wait for "You just completed" screen, exit
+6. Assert no login prompt appeared
 
 **Part B: ECML Content Consumption (TC_03)**
-11. Click Filter option again
-12. Clear previous filter and select "ECML" content type
-13. View filtered ECML content cards
-14. Tap on any ECML content item
-15. Verify ECML content player opens
-16. Interact with ECML content:
-    - Complete interactions/exercises
-    - Navigate through all sections
-    - Verify submission or completion indicator
-17. Finish ECML content
-18. Return to Explore page
+7. Apply "Interactive" filter, find ECML card
+8. Navigate via coordinate taps (95.7%×52.7%) up to 15×, click Submit if present
+9. Wait for completion, exit
 
-**Part C: General Content Consumption (TC_05)**
-19. Clear all filters to show all content
-20. Select a non-PDF, non-ECML content item (e.g., video, HTML, interactive)
-21. Tap to open content
-22. Verify player launches successfully
-23. Consume content through:
-    - Full playback (video)
-    - Complete interaction (H5P, Quml)
-    - Read/navigate (HTML, text)
-24. Close content player
-25. Return to Explore page
+**Part C: Video Content Consumption (TC_05)**
+10. Apply "Video" filter, find video card
+11. Play and wait for completion (no fast-forward navigation)
+12. Exit (no login prompt assertion)
 
 ### Expected Results:
-- PDF filter applies correctly ✓
-- PDF content opens in appropriate player ✓
-- PDF is readable and navigable ✓
-- ECML filter applies correctly ✓
-- ECML content launches and is interactive ✓
-- General content filter and player work ✓
-- No login required at any step ✓
-- Content consumption works without progress tracking ✓
+- All 3 format players work without login ✓
+- PDF: reads actual page count for precise navigation ✓
+- ECML: coordinate-tap progression to end ✓
+- Video: passive playback completion ✓
+- No login prompt at any step ✓ (asserted in Part A only)
 
 ### Data-Driven Approach:
 - Test multiple PDF files if available
@@ -122,70 +99,44 @@ Anonymous user filters and consumes multiple content formats from Explore page w
 
 ## **E2E Suite 3: Content Details Page - Discovery to Consumption**
 **Covers:** TC_09, TC_07, TC_08, T~~C_06 (06-pending)~~
-**Flow:** My Learning → Course Card → Details Page → Join → Player Launch → Consume  
-**Status:** NA (My Learning availability for anonymous users)
+**Flow:** Explore → Course Details → Login Redirect → Profile Verification → Content Playlist
+**Status:** NA
 
 ### Test Scenario:
-Anonymous user explores course details and consumes content from the details page without creating an account.
+Anonymous user explores course details, verifies login redirect, checks profile for My Learning absence, and browses collection content.
+
+### Test Execution Order:
+**Part A → Part C → Part B** (as written in file)
 
 ### Combined Test Steps:
 
-**Setup:**
-1. Access application as anonymous user
-2. Navigate to "Explore" tab (or equivalent section showing available courses)
-3. Verify courses are visible without login requirement
+**Part A: Course Details → Login Redirect (TC_09)**
+1. Ensure anonymous, verify state, navigate to Explore
+2. Check "Courses" checkbox in filter (without explicitly clicking Collections tab)
+3. Click the first course card found
+4. Verify "Course Overview" heading and "Let's Get Started" button (enabled)
+5. Click "Let's Get Started"
+6. Assert redirect to Sign In page: email field, password field, "Welcome to Sunbird!" heading present
+7. Navigate back
 
-**Part A: Course player and Launch (TC_09)**
-
-4. Click on the filter and select Collections and check "Courses"
-5. Click on any course card to open the page
-6. Verify Details page loads with:
-   - Course title and description
-   - Course metadata (Units, Lessons, Best Suited For...,  etc.)
-   - Course Curriculum, Course Unit, etc...
-   - "Join Course" or "Let's Get Started" button
-   - Course preview/thumbnail
-7. Verify "Let's Get Started" button is visible and enabled
-8. Click "Let's Get Started" button
-9. Verify user can join only after login 
-   - validation* is done when we click on "Let's Get Started" it goes to a login page where Email ID & Password is asked.
-   - thats how it should work.
+**Part C: Profile My Learning Absence (TC_08)**
+8. Tap Profile tab
+9. Verify "Guest" label and "Sign in to access your learning journey" text
+10. Count all "My Learning" buttons — expects exactly 1 (only bottom nav tab, no duplicate in profile content area)
 
 **Part B: Content Playlist (TC_07)**
-10. Navigate through Explore page
-11. filter through Collections and select "Content Playlist"
-    - Validate if its a content playlist by checking tags on each card "Content Playlist"
-12. Open/play any content
-13. Verify content opens without requiring login
-14. Verify content controls are available by:
-    - Playing individual content under the "Collection Curriculum
-    - Check if individual content is able to open/play
-    - Speed/Quality (if video)
-    - Fullscreen (if video)
-15. Consume content 
-16. Close content
-17. Verify no progress is being tracked (no progress bar updates)
-18. Verify user can open same content again from same position (no session tracking)
-
-**Part C: PDF/ECML from Details Page (TC_08)**
-19. Return Profile page
-20. Check if it contains "My Learning" button
-    - If found then a logged out user can download certificate *validation failed
-    - else *validation passed
+11. Tap Explore, check "Content Playlist" filter
+12. Find playlist cards (tagged "Content Playlist"), click first card
+13. Verify Collection Details page: "Collection Overview", Units, Lessons, "Best Suited For", "Collection Curriculum"
+14. Iterate over all curriculum items: click → verify player loads → Back → re-enter collection
+15. No actual content consumption/playback — only verifies player screen appears
 
 ### Expected Results:
-- Details page loads with all course information ✓
-- "Join Course" doesn't show without account creation ✓
-- Content player launches on join ✓
-- Content is playable without login ✓
-- Multiple content types (PDF, ECML, video, etc.) work ✓
-- No progress tracking visible ✓
-- Content remains playable on revisit ✓
-
-### Edge Cases to Test:
-- Course with no free content (should show preview only)
-- Courses with varying content formats
-- Multiple join/leave scenarios
+- "Let's Get Started" redirects to Sign In page ✓
+- Profile page shows Guest state with no content-area "My Learning" button ✓
+- Collection details renders all metadata ✓
+- Each curriculum item opens a player ✓
+- Recovery: if Back lands on Explore, re-taps playlist card automatically ✓
 
 ---
 
@@ -313,6 +264,6 @@ Full realistic flow of anonymous user exploring, discovering, and consuming vari
 ## Notes
 
 - **TC_08 Duplication:** Original note indicated TC_02 & TC_03 covers TC_08 - confirmed that PDF/ECML consumption works identically whether accessed from Home/Explore (Suite 2) or Details page (Suite 3)
-- **My Learning Availability:** Suite 3 assumes anonymous users can access "My Learning" section with courses. Adjust navigation if structure differs.
+- **Suite 3 Part C:** Validates "My Learning" button absence by counting buttons (expects exactly 1 = bottom nav only), not by `isExisting()` which would match the bottom nav tab
 - **Content Filtering:** Assumes content type filters exist on Explore page. If not available, tests should use scroll/search instead.
 - **Login Requirements:** All suites should be run with anonymous/unregistered user session throughout entire flow.

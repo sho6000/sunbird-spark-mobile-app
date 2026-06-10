@@ -69,14 +69,14 @@ async function waitForCompletion(browser: WebdriverIO.Browser): Promise<void> {
       console.log('  "You just completed" detected');
       await browser.pause(1000);
 
-      const ratingClose = await browser.$('//android.widget.Button[@content-desc="Close"]');
+      const ratingClose = await browser.$('//android.widget.Button[@content-desc="Close" or @text="Close"]');
       if (await ratingClose.isExisting()) {
         await ratingClose.click();
         await browser.pause(1000);
         console.log('  Rating dialog closed');
       }
 
-      const exitCheck = await browser.$('//android.widget.TextView[@text="Exit"]');
+      const exitCheck = await browser.$('//*[@text="Exit"]');
       if (await exitCheck.isExisting()) {
         console.log('  Completed screen with Exit button confirmed');
       }
@@ -119,7 +119,7 @@ async function navigatePdfToLastPage(browser: WebdriverIO.Browser): Promise<void
       return;
     }
 
-    const nextArrow = await browser.$('~navigation-arrows-nextIcon');
+    const nextArrow = await browser.$('//android.widget.Button[@content-desc="navigation-arrows-nextIcon" or @text="navigation-arrows-nextIcon"]');
     if (!(await nextArrow.isExisting())) {
       console.log('  Next arrow not found');
       break;
@@ -139,6 +139,12 @@ async function tapPlayButton(browser: WebdriverIO.Browser): Promise<void> {
   const playBtn = await browser.$('//android.widget.Button[starts-with(@content-desc, "Play ")]');
   if (await playBtn.isExisting()) {
     await playBtn.click();
+    await browser.pause(3000);
+    return;
+  }
+  const textBtn = await browser.$('//android.widget.Button[starts-with(@text, "Play ")]');
+  if (await textBtn.isExisting()) {
+    await textBtn.click();
     await browser.pause(3000);
     return;
   }
@@ -249,7 +255,7 @@ describe('E2E Suite 2: Multi-Format Content Consumption — PDF (TC_02)', () => 
 
     await waitForCompletion(browser);
 
-    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    const exitBtn = await browser.$('//*[@text="Exit"]');
     if (await exitBtn.isExisting()) {
       await exitBtn.click();
       await browser.pause(2000);
@@ -295,7 +301,7 @@ describe('E2E Suite 2: Multi-Format Content Consumption — PDF (TC_02)', () => 
 
     await waitForCompletion(browser);
 
-    const exitBtn = await browser.$('//android.widget.TextView[@text="Exit"]');
+    const exitBtn = await browser.$('//*[@text="Exit"]');
     if (await exitBtn.isExisting()) {
       await exitBtn.click();
       await browser.pause(2000);

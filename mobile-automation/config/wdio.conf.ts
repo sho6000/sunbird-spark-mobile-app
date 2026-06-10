@@ -28,6 +28,7 @@ export const config: WebdriverIO.Config = {
         'appium:platformVersion': process.env.PLATFORM_VERSION || '15',
         'appium:app': appPath,
         'appium:automationName': 'UiAutomator2',
+        'appium:autoGrantPermissions': true, 
         'appium:udid': process.env.APP_UDID || 'emulator-5554'
     }],
 
@@ -81,8 +82,10 @@ export const config: WebdriverIO.Config = {
     services: [['appium', {
         args: {
             port: appiumPort,
+            config: './appium-config.json',
         },
     }]],
+
 
     // Framework you want to run your specs with.
     // The following are supported: Mocha, Jasmine, and Cucumber

@@ -1,7 +1,6 @@
 import { login, verifyLogin, testCredentials } from '../../../fixtures/login.fixture';
 
 let enrolledCourseName: string | null = null;
-let enrolledCourseProgress: number | null = null;
 
 const navLabels = new Set(['Search', 'Scan QR Code', 'Filters', 'Select Language', 'Home', 'My Learning', 'Explore', 'Support', 'Profile']);
 
@@ -622,9 +621,6 @@ describe('E2E Suite 4: Enrollment Progress Verification', () => {
 
     const initialVal = parseInt(initialMatch![1], 10);
     const newVal = parseInt(newMatch![1], 10);
-
-    enrolledCourseProgress = newVal;
-
     expect(newVal).toBeGreaterThan(initialVal);
     console.log(`  ✓ Progress increased: ${initialVal}% → ${newVal}%`);
   });
@@ -633,14 +629,6 @@ describe('E2E Suite 4: Enrollment Progress Verification', () => {
     if (!enrolledCourseName) {
       throw new Error('enrolledCourseName not set — it#1 did not complete successfully');
     }
-
-
-    if (enrolledCourseProgress !== null && enrolledCourseProgress >= 100) {
-      console.log('Course at 100% — "Leave Course" hidden for completed courses, skipping');
-      return;
-    }
-
-
     console.log('\n=== Leave Course Flow ===');
 
     const moreOpts = await browser.$('//android.widget.Button[@text="More options" or @content-desc="More options"]');
