@@ -62,8 +62,8 @@ else
     APPIUM_CMD="npx appium"
 fi
 
-INSTALLED_DRIVERS=$($APPIUM_CMD driver list --installed 2>/dev/null || true)
-if echo "$INSTALLED_DRIVERS" | grep -q "uiautomator2"; then
+INSTALLED_DRIVERS=$($APPIUM_CMD driver list --installed 2>&1 || true)
+if echo "$INSTALLED_DRIVERS" | grep -iq "uiautomator2"; then
     echo "  [OK] uiautomator2 driver already installed"
 else
     echo "  Installing uiautomator2 driver..."
