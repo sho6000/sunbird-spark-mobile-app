@@ -4,7 +4,7 @@ End-to-end test suite for Android mobile apps using WebdriverIO + Appium. Design
 
 ---
 
-> Emulator Recommendation: Use a Pixel 7 API 35 image for best compatibility. Real devices can be used but ensure correct `DEVICE_NAME`, `PLATFORM_VERSION`, and `APP_UDID` in `.env`.
+> Emulator Recommendation: Use a Pixel 3 API 35 image for best compatibility. Real devices can be used but ensure correct `DEVICE_NAME`, `PLATFORM_VERSION`, and `APP_UDID` in `.env`.
 
 ---
 
@@ -12,7 +12,7 @@ End-to-end test suite for Android mobile apps using WebdriverIO + Appium. Design
 
 ```bash
 # 1. Run the setup script
-./install.sh
+chmod +x install.sh && ./install.sh
 
 # 2. Edit your .env file with credentials and device settings
 #    (install.sh creates .env from data/.envExample)
@@ -182,15 +182,22 @@ The fixture files in `fixtures/` are the main extension points:
 
 ---
 
-## To install the application
+## App Setup Cmds
 
+To install the application
 ```bash
 adb install -r .\app\android\app-debug.apk
+
+#unix
+adb install -r ./app/android/app-debug.apk 
 ```
 
 To test activity start:
 ```bash
-adb shell dumpsys activity activities | findstr /i "org.sunbird.app"
+#windows
+adb shell dumpsys activity activities | findstr /i "org.sunbird.spark.app"
+#Unix
+adb shell dumpsys activity activities | grep -i "org.sunbird.spark.app"
 ```
 
 

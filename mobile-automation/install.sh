@@ -27,7 +27,7 @@ else
 fi
 
 if command -v java &>/dev/null; then
-    java_version=$(java -version 2>&1 | head -1 | grep -oP '(\d+\.?\d*)' | head -1)
+    java_version=$(java -version 2>&1 | head -1 | grep -Eo '"[0-9]+\.[0-9]+' | tr -d '"')
     echo "  [OK] Java $java_version"
     pass
 else
@@ -49,6 +49,28 @@ else
     echo "  [WARN] Appium not installed globally — install with: npm i -g appium"
     echo "         Or use npx: npx appium"
 fi
+
+echo ""
+
+# ── Install UiAutomator2 Appium driver ──
+
+echo "--- Appium driver ---"
+
+if command -v appium &>/dev/null; then
+    APPIUM_CMD="appium"
+else
+    APPIUM_CMD="npx appium"
+fi
+
+INSTALLED_DRIVERS=$($APPIUM_CMD driver list --installed 2>/dev/null || true)
+if echo "$INSTALLED_DRIVERS" | grep -q "uiautomator2"; then
+    echo "  [OK] uiautomator2 driver already installed"
+else
+    echo "  Installing uiautomator2 driver..."
+    $APPIUM_CMD driver install uiautomator2
+    echo "  [OK] uiautomator2 driver installed"
+fi
+pass
 
 echo ""
 

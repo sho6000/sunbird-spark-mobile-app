@@ -6,6 +6,20 @@ End-to-end test suites for logged out users content consumption flows in the Sun
 
 ---
 
+## **Suite 0: Dismiss Onboarding (Setup)**
+**File:** `suite0-dismiss-onboarding.e2e.ts`
+**Flow:** Startup → Dismiss Onboarding
+**Status:** PASS
+
+Runs first on fresh launch to dismiss the in-app onboarding screen by clicking "Skip onboarding". With `appium:noReset: true` this screen only appears once, so subsequent runs skip it silently (button not found → no-op).
+
+**Test Steps:**
+1. Launch the app
+2. If "Skip onboarding" button is visible, click it
+3. Proceed to Suite 1
+
+---
+
 ## **E2E Suite 1: Anonymous Home Page Discovery (Content Playlists & Browse)**
 **Covers:** TC_01, TC_04  
 **Flow:** Home Page Display → Explore Page Display  
