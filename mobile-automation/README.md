@@ -15,7 +15,7 @@ End-to-end test suite for Android mobile apps using WebdriverIO + Appium. Design
 chmod +x install.sh && ./install.sh
 
 # 2. Edit your .env file with credentials and device settings
-#    (install.sh creates .env from data/.envExample)
+Update the .env file with your credentials.
 
 # 3. Run all tests (Appium is auto-managed)
 cd config && npm run test
