@@ -17,6 +17,6 @@
   "scripts": {
     "wdio": "wdio run ./wdio.conf.ts",
     "report": "node generate-md-report.js",
-    "test": "npm run wdio || true && npm run report"
+    "test": "npm run wdio || echo ignore && npm run report"
   }
 }

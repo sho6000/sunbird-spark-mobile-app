@@ -113,12 +113,11 @@ export const config: WebdriverIO.Config = {
         ['junit', {
             outputDir: '../reports/junit-results',
             outputFileFormat: function(opts) {
-                const spec = Array.isArray(opts.spec) ? opts.spec[0] : opts.spec;
-                const name = spec ? path.basename(spec, '.e2e.ts') : 'unknown';
-                return `junit-${name}.xml`;
+                return `junit-${opts.cid || 'unknown'}.xml`;
             }
         }]
     ],
+
 
     // Options to be passed to Mocha.
     // See the full list at http://mochajs.org/
