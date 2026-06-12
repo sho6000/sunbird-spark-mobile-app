@@ -86,7 +86,6 @@ export const config: WebdriverIO.Config = {
         },
     }]],
 
-
     // Framework you want to run your specs with.
     // The following are supported: Mocha, Jasmine, and Cucumber
     // see also: https://webdriver.io/docs/frameworks
@@ -112,8 +111,10 @@ export const config: WebdriverIO.Config = {
         'spec',
         ['junit', {
             outputDir: '../reports/junit-results',
-            outputFileFormat: function() {
-                return 'junit-results.xml';
+            outputFileFormat: function(opts) {
+                const spec = Array.isArray(opts.spec) ? opts.spec[0] : opts.spec;
+                const name = spec ? path.basename(spec, '.e2e.ts') : 'unknown';
+                return `junit-${name}.xml`;
             }
         }]
     ],

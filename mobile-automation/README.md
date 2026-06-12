@@ -45,11 +45,7 @@ mobile-automation/
 │       ├── anonymous_user_consumption/  # Guest-mode tests (see README.md inside)
 │       └── consumption/                 # Authenticated consumption tests (see README.md inside)
 │           ├── suite1-home-in-progress-courses.e2e.ts
-│           ├── suite2-explore-content-filtering.e2e.ts
-│           ├── suite3-multi-format-content-player.e2e.ts
-│           ├── suite4-course-enrollment-and-progress.e2e.ts
-│           ├── suite5-certificate-preview-and-download.e2e.ts
-│           └── suite6-my-learning-cross-verification.e2e.ts
+│           └── suite8...-...e2e.ts
 ├── reports/
 │   └── android/
 │       ├── test-results/               # Test output & screenshots
@@ -57,8 +53,6 @@ mobile-automation/
 ├── install.sh                       # One-click setup
 └── README.md                        # This file
 ```
-
-
 
 ---
 

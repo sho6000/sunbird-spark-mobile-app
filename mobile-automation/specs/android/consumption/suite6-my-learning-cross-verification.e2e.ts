@@ -255,7 +255,7 @@ describe('E2E Suite 6: My Learning Dashboard Complete View', () => {
             return courses;
         }
 
-        async function exhaustFilter(filterName: string): Promise<Map<string, { status: string; name: string; progress: number }>> {
+        async function exhaustFilter(filterName: string, expectedNames: string[] = []): Promise<Map<string, { status: string; name: string; progress: number }>> {
             await selectFilter(filterName);
             await browser.pause(1000);
 
@@ -271,6 +271,12 @@ describe('E2E Suite 6: My Learning Dashboard Complete View', () => {
                 for (const [name, data] of visible) {
                     allCourses.set(name, data);
                 }
+
+                if (expectedNames.length > 0 && expectedNames.every(n => allCourses.has(n))) {
+                    console.log(`✅ "${filterName}" — all ${expectedNames.length} expected courses found (${i + 1} scrolls)`);
+                    break;
+                }
+
                 if (allCourses.size === prevSize) {
                     console.log(`✅ "${filterName}" filter exhausted at ${allCourses.size} courses (${i + 1} scrolls)`);
                     break;
@@ -287,13 +293,16 @@ describe('E2E Suite 6: My Learning Dashboard Complete View', () => {
         }
 
         console.log('\n--- Phase 2: Ongoing filter ---');
-        const phase2Ongoing = await exhaustFilter('Ongoing');
+        const phase2Ongoing = await exhaustFilter('Ongoing',
+            phase1ActiveCourses.filter(c => c.progress > 0).map(c => c.name));
 
         console.log('\n--- Phase 2: Completed filter ---');
-        const phase2Completed = await exhaustFilter('Completed');
+        const phase2Completed = await exhaustFilter('Completed',
+            phase1CompletedCourses.map(c => c.name));
 
         console.log('\n--- Phase 2: Not Started filter ---');
-        const phase2NotStarted = await exhaustFilter('Not Started');
+        const phase2NotStarted = await exhaustFilter('Not Started',
+            phase1ActiveCourses.filter(c => c.progress === 0).map(c => c.name));
 
         // ══════════════════════════════════════════
         // PHASE 3: Cross-verification (TC_22)

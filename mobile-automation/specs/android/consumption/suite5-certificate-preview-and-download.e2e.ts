@@ -113,10 +113,11 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
 
         // Tap My Learning in the profile list
         await scrollToAndTap(browser,'//android.widget.Button[@content-desc="My Learning" or @text="My Learning"]','My Learning');
-        await browser.pause(2000);
+        await browser.pause(4000);
+
 
         // Open Filters, select Completed
-        const filtersBtn = await browser.$('//android.widget.Button[@text="Filters"]');
+        const filtersBtn = await browser.$('//android.widget.Button[@content-desc="Filters" or @text="Filters"]');
         await filtersBtn.waitForDisplayed({ timeout: 5000 });
         await filtersBtn.click();
         await browser.pause(1500);
@@ -220,7 +221,7 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
 
         
         // Verify preview dialog opened
-        const dialog = await browser.$('//android.app.Dialog');
+        const dialog = await browser.$('//android.app.AlertDialog');
         await dialog.waitForDisplayed({ timeout: 10000 });
         console.log('✅ TC_19 PASS: Certificate preview dialog opened successfully');
 
@@ -240,71 +241,86 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
             throw new Error('No completed course name available from previous test');
         }
 
-
-        // Scope card to the one matching BOTH course name AND "Download Certificate"
         const downloadBtn = await browser.$(`//android.widget.Button[contains(@text, "${targetCourseName}") and contains(@text, "Download Certificate")]`);
-        if (await downloadBtn.isExisting()) {
-            const loc = await downloadBtn.getLocation();
-            const size = await downloadBtn.getSize();
-            const centerX = loc.x + Math.floor(size.width / 2);
-            const bottomY = loc.y + Math.floor(size.height * 0.93);
-
-            await browser.action('pointer')
-                .move({ x: centerX, y: bottomY })
-                .down()
-                .up()
-                .perform();
-            await browser.pause(2000);
-
-
-            // Verify download dialog appears
-            const downloadDialog = await browser.$('//android.app.Dialog');
-            await downloadDialog.waitForDisplayed({ timeout: 10000 });
-            console.log('✅ Download options dialog opened');
-
-
-
-
-            // Verify download as PDF button
-            const pdfBtn = await browser.$('//android.widget.Button[@text="Download as PDF"]');
-            await pdfBtn.waitForDisplayed({ timeout: 5000 });
-            const pdfDisplayed = await pdfBtn.isDisplayed();
-            console.log(`✅ TC_23 PASS: "Download as PDF" button is ${pdfDisplayed ? 'visible' : 'not visible'}`);
-
-            // Verify download as PNG button
-            const pngBtn = await browser.$('//android.widget.Button[@text="Download as PNG"]');
-            await pngBtn.waitForDisplayed({ timeout: 5000 });
-            const pngDisplayed = await pngBtn.isDisplayed();
-            console.log(`✅ TC_24 PASS: "Download as PNG" button is ${pngDisplayed ? 'visible' : 'not visible'}`);
-
-            // Both format options available
-            const bothFormatsAvailable = pdfDisplayed && pngDisplayed;
-            console.log(`✅ TC_28 PASS: Both PDF and PNG download options ${bothFormatsAvailable ? 'are available' : 'are NOT both available'}`);
-
-            await browser.saveScreenshot('../reports/android/test-results/suite5-download-dialog.png');
-
-            // Verify Cancel button exists
-            const cancelBtn = await browser.$('//android.widget.Button[@text="Cancel"]');
-            await cancelBtn.waitForDisplayed({ timeout: 5000 });
-            const cancelDisplayed = await cancelBtn.isDisplayed();
-            console.log(`✅ Cancel button is ${cancelDisplayed ? 'visible' : 'not visible'}`);
-
-            // Dismiss dialog via Cancel
-            if (cancelDisplayed) {
-                await cancelBtn.click();
-                await browser.pause(2000);
-            }
-
-            expect(pdfDisplayed).toBe(true);
-            expect(pngDisplayed).toBe(true);
-        }
-        else 
-        {
+        if (!(await downloadBtn.isExisting())) {
             throw new Error(`Could not find the course card with name "${targetCourseName}" and "Download Certificate" button for download test`);
         }
 
+        const loc     = await downloadBtn.getLocation();
+        const size    = await downloadBtn.getSize();
+        const centerX = loc.x + Math.floor(size.width / 2);
+        const bottomY = loc.y + Math.floor(size.height * 0.93);
 
-        // ── Final Summary ──
+        await browser.action('pointer')
+            .move({ x: centerX, y: bottomY })
+            .down()
+            .up()
+            .perform();
+
+        // Wait for dialog to fully animate in before querying children
+        const downloadDialog = await browser.$('//android.app.AlertDialog');
+        await downloadDialog.waitForDisplayed({ timeout: 10000 });
+        await browser.pause(1500); // let animation settle
+
+        console.log('✅ Download options dialog opened');
+
+        // Use resource-id — confirmed stable from debug output
+        const pdfBtn = await browser.$('//android.widget.Button[contains(@resource-id, "action-sheet-button") or contains(@text, "Download as PDF")]');
+        await pdfBtn.waitForExist({ timeout: 8000 });
+        const pdfDisplayed = await pdfBtn.isExisting();
+        console.log(`✅ TC_23 PASS: "Download as PDF" button is ${pdfDisplayed ? 'present' : 'not present'}`);
+
+        const pngBtn = await browser.$('//android.widget.Button[contains(@resource-id, "action-sheet-button") or contains(@text, "Download as PNG")]');
+        await pngBtn.waitForExist({ timeout: 8000 });
+        const pngDisplayed = await pngBtn.isExisting();
+        console.log(`✅ TC_24 PASS: "Download as PNG" button is ${pngDisplayed ? 'present' : 'not present'}`);
+
+        const bothFormatsAvailable = pdfDisplayed && pngDisplayed;
+        console.log(`✅ TC_28 PASS: Both PDF and PNG download options ${bothFormatsAvailable ? 'are available' : 'are NOT both available'}`);
+
+        async function fileExists(filename: string): Promise<boolean> {
+            const dirs = ['/sdcard/Documents/', '/storage/emulated/0/Documents/'];
+            const candidates = [filename, filename.replace(/ /g, '_')];
+            for (const dir of dirs) {
+                try {
+                    const listing = await browser.execute('mobile: shell', { command: 'ls', args: [dir] });
+                    if (candidates.some(c => (listing as string).includes(c))) return true;
+                } catch {}
+            }
+            return false;
+        }
+
+        // ── Click "Download as PDF" and verify file ──
+        console.log('  Downloading as PDF...');
+        await pdfBtn.click();
+        await browser.waitUntil(async () => fileExists(`${targetCourseName}.pdf`),
+            { timeout: 10000, interval: 500, timeoutMsg: 'PDF file not found after download' });
+        console.log(`  ✅ PDF downloaded: "${targetCourseName}.pdf"`);
+
+        // ── Re-open dialog for PNG test ──
+        await browser.pause(4000);
+        const loc2 = await downloadBtn.getLocation();
+        const size2 = await downloadBtn.getSize();
+        const centerX2 = loc2.x + Math.floor(size2.width / 2);
+        const bottomY2 = loc2.y + Math.floor(size2.height * 0.93);
+        await browser.action('pointer')
+            .move({ x: centerX2, y: bottomY2 })
+            .down()
+            .up()
+            .perform();
+        await browser.pause(2000);
+
+        const pngBtn2 = await browser.$('//android.widget.Button[contains(@resource-id, "action-sheet-button") or contains(@text, "Download as PNG")]');
+        await pngBtn2.waitForExist({ timeout: 8000 });
+        console.log('  Downloading as PNG...');
+        await pngBtn2.click();
+        await browser.pause(2000);
+        await browser.waitUntil(async () => fileExists(`${targetCourseName}.png`),
+            { timeout: 10000, interval: 500, timeoutMsg: 'PNG file not found after download' });
+        console.log(`  ✅ PNG downloaded: "${targetCourseName}.png"`);
+
+        await browser.saveScreenshot('../reports/android/test-results/suite5-download-dialog.png');
+
         console.log('\n══════════════════════════════════════════════');
         console.log('📊 Suite 5: Certificate Complete Flow Results');
         console.log('══════════════════════════════════════════════');

@@ -302,7 +302,7 @@ async function navigateEcmlToLastPage(browser: WebdriverIO.Browser): Promise<voi
 
 async function navigateYoutubeToLastPage(browser: WebdriverIO.Browser): Promise<void> {
   console.log('  YouTube player loaded, fast-forwarding via double-taps...');
-  await browser.pause(5000);
+  await browser.pause(3000);
 
   const { width, height } = await browser.getWindowSize();
   const tapX = Math.round(width * 0.75);
@@ -315,14 +315,14 @@ async function navigateYoutubeToLastPage(browser: WebdriverIO.Browser): Promise<
     const action = browser.action('pointer');
     action.move({ x: tapX, y: tapY, origin: 'viewport' });
     action.down();
-    action.pause(80);
+    action.pause(5);
     action.up();
-    action.pause(150);
+    action.pause(20);
     action.down();
-    action.pause(80);
+    action.pause(5);
     action.up();
     await action.perform();
-    await browser.pause(300);
+    await browser.pause(0);
   }
 
   async function isCompleted(): Promise<boolean> {
@@ -331,22 +331,22 @@ async function navigateYoutubeToLastPage(browser: WebdriverIO.Browser): Promise<
   }
 
   for (let i = 1; i <= MAX_TAPS; i++) {
-    if (await isCompleted()) {
+    if (i % 30 === 0 && await isCompleted()) {
       console.log(`  Completion detected after ${i} double-taps (~${i * 10}s skipped)`);
       completed = true;
       break;
     }
-
     await doubleTap();
-
-    if (i % 10 === 0) {
+    if (i % 20 === 0 || i === MAX_TAPS) {
       console.log(`  ${i} taps done (~${i * 10}s skipped so far)...`);
     }
   }
 
   if (!completed) {
-    console.warn('  Completion not detected within tap limit, proceeding anyway...');
+    console.warn(`  Not completed after ${MAX_TAPS} taps — video may be very long`);
   }
+
+  await browser.pause(2000);
 }
 
 async function pressBack(browser: WebdriverIO.Browser): Promise<void> {

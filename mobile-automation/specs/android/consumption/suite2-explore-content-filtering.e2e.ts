@@ -47,7 +47,7 @@ describe('Explore Page - Content Type Filter Tests (Suite 2)', () => {
         for (const [checkboxText, badgeText] of Object.entries(CONTENT_TYPE_FILTERS)) {
             console.log(`\nTesting content type filter: "${checkboxText}" (badge: "${badgeText}")`);
 
-            const filtersBtn = await browser.$('//android.widget.Button[@text="Filters"]');
+            const filtersBtn = await browser.$('//android.widget.Button[@content-desc="Filters" or @text="Filters"]');
             await filtersBtn.waitForDisplayed({ timeout: 10000 });
             await filtersBtn.click();
             await browser.pause(1500);
@@ -70,7 +70,7 @@ describe('Explore Page - Content Type Filter Tests (Suite 2)', () => {
             await currentCb.click();
             await browser.pause(300);
 
-            const closeBtn = await browser.$('//android.widget.Button[@text="Close"]');
+            const closeBtn = await browser.$('//android.widget.Button[@text="Close" or @content-desc="Close"]');
             await closeBtn.waitForDisplayed({ timeout: 5000 });
             await closeBtn.click();
             await browser.pause(3000);

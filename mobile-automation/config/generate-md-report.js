@@ -9,7 +9,7 @@ const resultsDir = path.join(projectRoot, 'reports', 'junit-results');
 const reportDir = path.join(projectRoot, 'reports', 'md-report');
 const screenshotsDir = path.join(projectRoot, 'reports', 'android', 'test-results');
 
-const junitFile = path.join(resultsDir, 'junit-results.xml');
+
 
 function escapeMd(text) {
     return text.replace(/\|/g, '\\|').replace(/\n/g, ' ');
@@ -182,23 +182,36 @@ function generateMarkdown(suites) {
 }
 
 function main() {
-    if (!fs.existsSync(junitFile)) {
-        console.error(`JUnit results file not found: ${junitFile}`);
+    if (!fs.existsSync(resultsDir)) {
+        console.error(`JUnit results directory not found: ${resultsDir}`);
         console.error('Run tests first: cd config && npm run wdio');
         process.exit(1);
     }
 
-    const xmlContent = fs.readFileSync(junitFile, 'utf-8');
-    const suites = parseJunitXml(xmlContent);
+    const junitFiles = fs.readdirSync(resultsDir)
+        .filter(f => f.startsWith('junit-') && f.endsWith('.xml'))
+        .sort();
 
-    if (suites.length === 0) {
+    if (junitFiles.length === 0) {
+        console.error(`No JUnit XML files found in ${resultsDir}`);
+        process.exit(1);
+    }
+
+    let allSuites = [];
+    for (const file of junitFiles) {
+        const xmlContent = fs.readFileSync(path.join(resultsDir, file), 'utf-8');
+        const suites = parseJunitXml(xmlContent);
+        allSuites.push(...suites);
+    }
+
+    if (allSuites.length === 0) {
         console.error('No test suites found in JUnit results');
         process.exit(1);
     }
 
     fs.mkdirSync(reportDir, { recursive: true });
 
-    const md = generateMarkdown(suites);
+    const md = generateMarkdown(allSuites);
 
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];

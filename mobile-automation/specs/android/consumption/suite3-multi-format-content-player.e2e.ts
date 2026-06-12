@@ -349,27 +349,27 @@ async function navigateEcmlToLastPage(browser: WebdriverIO.Browser): Promise<voi
 
 async function navigateYoutubeToLastPage(browser: WebdriverIO.Browser): Promise<void> {
   console.log('  YouTube player loaded, fast-forwarding via double-taps...');
-  await browser.pause(5000);
+  await browser.pause(3000);
 
   const { width, height } = await browser.getWindowSize();
-  const tapX = Math.round(width * 0.75); // right side = +10s
+  const tapX = Math.round(width * 0.75);
   const tapY = Math.round(height * 0.5);
 
-  const MAX_TAPS = 500; // 500 × 10s = covers 1hr 23min video
+  const MAX_TAPS = 500;
   let completed = false;
 
   async function doubleTap(): Promise<void> {
     const action = browser.action('pointer');
     action.move({ x: tapX, y: tapY, origin: 'viewport' });
     action.down();
-    action.pause(80);
+    action.pause(5);
     action.up();
-    action.pause(150); // <300ms = registers as double-tap
+    action.pause(20);
     action.down();
-    action.pause(80);
+    action.pause(5);
     action.up();
     await action.perform();
-    await browser.pause(300); // short pause between taps
+    await browser.pause(0);
   }
 
   async function isCompleted(): Promise<boolean> {
@@ -378,22 +378,22 @@ async function navigateYoutubeToLastPage(browser: WebdriverIO.Browser): Promise<
   }
 
   for (let i = 1; i <= MAX_TAPS; i++) {
-    if (await isCompleted()) {
+    if (i % 30 === 0 && await isCompleted()) {
       console.log(`  Completion detected after ${i} double-taps (~${i * 10}s skipped)`);
       completed = true;
       break;
     }
-
     await doubleTap();
-
-    if (i % 10 === 0) {
+    if (i % 20 === 0 || i === MAX_TAPS) {
       console.log(`  ${i} taps done (~${i * 10}s skipped so far)...`);
     }
   }
 
   if (!completed) {
-    console.warn('  Completion not detected within tap limit, proceeding anyway...');
+    console.warn(`  Not completed after ${MAX_TAPS} taps — video may be very long`);
   }
+
+  await browser.pause(2000);
 }
 
 describe('Suite 3 — Content Player', () => {
@@ -575,6 +575,7 @@ describe('Suite 3 — Content Player', () => {
 // YOUTUBE CONTENT
 
   it('should play a YouTube video and reach completion screen', async () => {
+    this.timeout(300000);
 
     console.log('\n=== YouTube ===');
 
