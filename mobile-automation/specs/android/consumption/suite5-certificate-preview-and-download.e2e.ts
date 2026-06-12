@@ -292,7 +292,9 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
 
         // ── Click "Download as PDF" and verify file ──
         console.log('  Downloading as PDF...');
-        await pdfBtn.click();
+        const pdfBtn2 = await browser.$('//android.widget.Button[contains(@resource-id, "action-sheet-button") or contains(@text, "Download as PDF")]');
+        await pdfBtn2.waitForExist({ timeout: 8000 });
+        await pdfBtn2.click();
         await browser.waitUntil(async () => fileExists(`${targetCourseName}.pdf`),
             { timeout: 10000, interval: 500, timeoutMsg: 'PDF file not found after download' });
         console.log(`  ✅ PDF downloaded: "${targetCourseName}.pdf"`);

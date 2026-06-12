@@ -575,7 +575,7 @@ describe('Suite 3 — Content Player', () => {
 // YOUTUBE CONTENT
 
   it('should play a YouTube video and reach completion screen', async () => {
-    this.timeout(300000);
+    // this.timeout(300000);
 
     console.log('\n=== YouTube ===');
 

@@ -13,6 +13,7 @@ const CONTENT_TYPE_FILTERS: Record<string, string> = {
 const NAV_BUTTONS = new Set(['Search', 'Scan QR Code', 'Filters', 'Select Language', 'Home', 'My Learning', 'Explore', 'Support', 'Profile']);
 
 async function getContentCardTexts(browser: WebdriverIO.Browser): Promise<string[]> {
+    await browser.pause(2000);
     const buttons = await browser.$$('android.widget.Button');
     const cardTexts: string[] = [];
     for (const btn of buttons) {
