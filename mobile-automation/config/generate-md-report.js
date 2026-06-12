@@ -215,7 +215,8 @@ function main() {
 
     const now = new Date();
     const dateStr = now.toISOString().split('T')[0];
-    const reportFile = path.join(reportDir, `Test-Report-${dateStr}.md`);
+    const ts = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+    const reportFile = path.join(reportDir, `Test-Report-${dateStr}-${ts}.md`);
 
     fs.writeFileSync(reportFile, md, 'utf-8');
     console.log(`✅ Report generated: ${reportFile}`);

@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -150,6 +151,14 @@ export const config: WebdriverIO.Config = {
      * @param  {object} args     object that will be merged with the main configuration once worker is initialized
      * @param  {object} execArgv list of string arguments passed to the worker process
      */
+    onPrepare: function () {
+        const junitDir = path.resolve(__dirname, '..', 'reports', 'junit-results');
+        if (fs.existsSync(junitDir)) {
+            fs.rmSync(junitDir, { recursive: true, force: true });
+        }
+        fs.mkdirSync(junitDir, { recursive: true });
+    },
+
     // onWorkerStart: function (cid, caps, specs, args, execArgv) {
     // },
     /**
