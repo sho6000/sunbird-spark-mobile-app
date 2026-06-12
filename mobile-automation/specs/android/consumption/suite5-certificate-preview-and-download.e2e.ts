@@ -370,7 +370,7 @@ describe('E2E Suite 5: Certificate Complete Flow (Preview → Download → Verif
             }
         }
 
-        // expect(pdfOk).toBe(true);
+        expect(pdfOk).toBe(true);
         expect(pngOk).toBe(true);
 
         await browser.saveScreenshot('../reports/android/test-results/suite5-download-dialog.png');
