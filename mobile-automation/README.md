@@ -42,10 +42,8 @@ mobile-automation/
 │   └── scroll.fixture.ts           # Scroll-until-text helper
 ├── specs/
 │   └── android/
-│       ├── anonymous_user_consumption/  # Guest-mode tests (see README.md inside)
-│       └── consumption/                 # Authenticated consumption tests (see README.md inside)
-│           ├── suite1-home-in-progress-courses.e2e.ts
-│           └── suite8...-...e2e.ts
+│       ├── anonymous_user_consumption/  # [Guest-mode tests](specs/android/anonymous_user_consumption/README.md)
+│       └── consumption/                 # [Authenticated consumption tests](specs/android/consumption/README.md)
 ├── reports/
 │   └── android/
 │       ├── test-results/               # Test output & screenshots
