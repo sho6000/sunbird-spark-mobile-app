@@ -1,0 +1,144 @@
+name: Mobile E2E Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'Which tests to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - 'all'
+          - 'anonymous'
+          - 'consumption'
+      spec:
+        description: 'For custom: file path relative to mobile-automation/ (e.g. specs/android/consumption/suite1-home-in-progress-courses.e2e.ts)'
+        required: false
+        type: string
+
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: mobile-automation/config/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: ./mobile-automation/config
+        run: npm ci
+
+      - name: Install uiautomator2 driver
+        working-directory: ./mobile-automation/config
+        run: npx appium driver install uiautomator2
+
+      - name: Verify secrets exist
+        run: |
+          if [ -z "${{ secrets.SUNBIRD_EMAIL }}" ] || [ -z "${{ secrets.SUNBIRD_PASSWORD }}" ] || [ -z "${{ secrets.SUNBIRD_USERNAME }}" ]; then
+            echo "============================================"
+            echo "  ERROR: Missing GitHub Secrets"
+            echo "============================================"
+            echo ""
+            echo "  The following secrets must be set in your fork:"
+            echo "    - SUNBIRD_EMAIL"
+            echo "    - SUNBIRD_PASSWORD"
+            echo "    - SUNBIRD_USERNAME"
+            echo ""
+            echo "  Go to: Settings → Secrets and variables → Actions"
+            echo "  Add them, then re-run this workflow."
+            echo "============================================"
+            exit 1
+          fi
+          echo "All required secrets are present"
+
+      - name: Create .env from secrets
+        working-directory: ./mobile-automation
+        run: |
+          cat > .env << EOF
+          SUNBIRD_EMAIL=${{ secrets.SUNBIRD_EMAIL }}
+          SUNBIRD_PASSWORD=${{ secrets.SUNBIRD_PASSWORD }}
+          SUNBIRD_USERNAME=${{ secrets.SUNBIRD_USERNAME }}
+          APPIUM_PORT=4723
+          DEVICE_NAME=Pixel_3_API_35
+          PLATFORM_VERSION=15
+          APP_PATH=./app/android/app-debug.apk
+          APP_UDID=emulator-5554
+          EOF
+
+      - name: Create report directories
+        working-directory: ./mobile-automation
+        run: |
+          mkdir -p reports/junit-results
+          mkdir -p reports/android/test-results
+          mkdir -p reports/android/screenshots
+
+      - name: Verify APK exists
+        working-directory: ./mobile-automation
+        run: ls -lh app/android/app-debug.apk
+
+      - name: Run Android emulator + E2E tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          avd-name: Pixel_3_API_35
+          emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect
+          disable-animations: true
+          working-directory: ./mobile-automation
+          script: |
+            cd config
+            SCOPE="${{ inputs.scope }}"
+            SPEC="${{ inputs.spec }}"
+
+            if [ -n "$SPEC" ]; then
+              echo "Running single spec: $SPEC"
+              npx wdio run ./wdio.conf.ts --spec "../$SPEC"
+            elif [ "$SCOPE" = "anonymous" ]; then
+              echo "Running anonymous suites only"
+              npx wdio run ./wdio.conf.ts --spec "../specs/android/anonymous_user_consumption/suite0-dismiss-onboarding.e2e.ts" \
+                                          --spec "../specs/android/anonymous_user_consumption/suite1-guest-home-and-explore-browsing.e2e.ts" \
+                                          --spec "../specs/android/anonymous_user_consumption/suite2-guest-multi-format-player.e2e.ts" \
+                                          --spec "../specs/android/anonymous_user_consumption/suite3-guest-content-details-and-login-redirect.e2e.ts"
+            elif [ "$SCOPE" = "consumption" ]; then
+              echo "Running consumption suites only"
+              npx wdio run ./wdio.conf.ts --spec "../specs/android/consumption/suite1-home-in-progress-courses.e2e.ts" \
+                                          --spec "../specs/android/consumption/suite2-explore-content-filtering.e2e.ts" \
+                                          --spec "../specs/android/consumption/suite3-multi-format-content-player.e2e.ts" \
+                                          --spec "../specs/android/consumption/suite4-course-enrollment-and-progress.e2e.ts" \
+                                          --spec "../specs/android/consumption/suite5-certificate-preview-and-download.e2e.ts" \
+                                          --spec "../specs/android/consumption/suite6-my-learning-cross-verification.e2e.ts" \
+                                          --spec "../specs/android/consumption/suite8-profile-data-consent-toggle.e2e.ts"
+            else
+              echo "Running all suites"
+              npm run wdio
+            fi
+
+      - name: Generate MD report
+        if: always()
+        working-directory: ./mobile-automation/config
+        run: npm run report
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ github.run_id }}
+          path: |
+            mobile-automation/reports/
+          retention-days: 14
