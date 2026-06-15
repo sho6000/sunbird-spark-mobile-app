@@ -6,7 +6,9 @@ End-to-end test suites for logged out users content consumption flows in the Sun
 
 ---
 
-## **Suite 0: Dismiss Onboarding (Setup)**
+## Suite Explanations
+
+### **Suite 0: Dismiss Onboarding (Setup)**
 **File:** `suite0-dismiss-onboarding.e2e.ts`
 **Flow:** Startup → Dismiss Onboarding
 **Status:** PASS
@@ -20,15 +22,15 @@ Runs first on fresh launch to dismiss the in-app onboarding screen by clicking "
 
 ---
 
-## **E2E Suite 1: Anonymous Home Page Discovery (Content Playlists & Browse)**
+### **E2E Suite 1: Anonymous Home Page Discovery (Content Playlists & Browse)**
 **Covers:** TC_01, TC_04  
 **Flow:** Home Page Display → Explore Page Display  
 **Status:** NA / PASS
 
-### Test Scenario:
+**Test Scenario:**
 Anonymous user discovers available content across Home and Explore pages without authentication.
 
-### Combined Test Steps:
+## Combined Test Steps:
 
 **Part A: Home Page Playlist Verification (TC_01)**
 1. Access application without logging in
@@ -54,28 +56,28 @@ Anonymous user discovers available content across Home and Explore pages without
 10. Compare content quality between Home playlists and Explore listings
 11. Verify no login prompt appears on either page
 
-### Expected Results:
+## Expected Results:
 - Content playlists visible on Home page ✓
 - Explore page displays all available content ✓
 - All cards render with complete information ✓
 - No authentication required to view content ✓
 
-### Manual Checks:
+## Manual Checks:
 - Visual design consistency between pages
 - Proper image loading and rendering
 - Responsive layout on different screen sizes
 
 ---
 
-## **E2E Suite 2: Multi-Format Content Consumption from Explore (PDF + ECML + General)**
+### **E2E Suite 2: Multi-Format Content Consumption from Explore (PDF + ECML + General)**
 **Covers:** TC_02, TC_03, TC_05  
 **Flow:** Explore → Filter by Content Type → Open Player → Consume Content  
 **Status:** Partially NA (depends on content availability)
 
-### Test Scenario:
+## Test Scenario:
 Anonymous user filters and consumes multiple content formats from Explore page without logging in.
 
-### Combined Test Steps:
+## Combined Test Steps:
 
 **Scope:** 3 content types only — PDF, ECML, Video (no H5P, EPUB, YouTube, HTML)
 
@@ -97,32 +99,32 @@ Anonymous user filters and consumes multiple content formats from Explore page w
 11. Play and wait for completion (no fast-forward navigation)
 12. Exit (no login prompt assertion)
 
-### Expected Results:
+## Expected Results:
 - All 3 format players work without login ✓
 - PDF: reads actual page count for precise navigation ✓
 - ECML: coordinate-tap progression to end ✓
 - Video: passive playback completion ✓
 - No login prompt at any step ✓ (asserted in Part A only)
 
-### Data-Driven Approach:
+## Data-Driven Approach:
 - Test multiple PDF files if available
 - Test different ECML interactions
 - Test various content formats as fallback
 
 ---
 
-## **E2E Suite 3: Content Details Page - Discovery to Consumption**
+### **E2E Suite 3: Content Details Page - Discovery to Consumption**
 **Covers:** TC_09, TC_07, TC_08, T~~C_06 (06-pending)~~
 **Flow:** Explore → Course Details → Login Redirect → Profile Verification → Content Playlist
 **Status:** NA
 
-### Test Scenario:
+**Test Scenario:**
 Anonymous user explores course details, verifies login redirect, checks profile for My Learning absence, and browses collection content.
 
-### Test Execution Order:
+## Test Execution Order:
 **Part A → Part C → Part B** (as written in file)
 
-### Combined Test Steps:
+## Combined Test Steps:
 
 **Part A: Course Details → Login Redirect (TC_09)**
 1. Ensure anonymous, verify state, navigate to Explore
@@ -145,7 +147,7 @@ Anonymous user explores course details, verifies login redirect, checks profile 
 14. Iterate over all curriculum items: click → verify player loads → Back → re-enter collection
 15. No actual content consumption/playback — only verifies player screen appears
 
-### Expected Results:
+## Expected Results:
 - "Let's Get Started" redirects to Sign In page ✓
 - Profile page shows Guest state with no content-area "My Learning" button ✓
 - Collection details renders all metadata ✓
@@ -154,15 +156,15 @@ Anonymous user explores course details, verifies login redirect, checks profile 
 
 ---
 
-## **E2E Suite 4: Complete Anonymous Content Journey (Browse → Filter → Select → Consume → Return)**
+### **E2E Suite 4: Complete Anonymous Content Journey (Browse → Filter → Select → Consume → Return)**
 **Covers:** TC_01, TC_02, TC_03, TC_04, TC_05, ~~TC_06~~, TC_07, TC_08 (Integration Test)  
 **Flow:** Complete user journey for anonymous content discovery and consumption  
 **Status:** Comprehensive Integration Test
 
-### Test Scenario:
+**Test Scenario:**
 Full realistic flow of anonymous user exploring, discovering, and consuming various content types.
 
-### Combined Test Steps:
+## Combined Test Steps:
 
 **Phase 1: Discovery (TC_01, TC_04)**
 1. Access application without login
@@ -204,7 +206,7 @@ Full realistic flow of anonymous user exploring, discovering, and consuming vari
 31. Verify no account creation was required
 32. Verify all content remained accessible and playable
 
-### Expected Results:
+## Expected Results:
 - Complete flow works without authentication ✓
 - All content types accessible from Home ✓
 - All filters work correctly ✓
@@ -213,17 +215,13 @@ Full realistic flow of anonymous user exploring, discovering, and consuming vari
 - No progress tracking or account requirements ✓
 - Consistent experience across all pages ✓
 
-### Execution Time:
+## Execution Time:
 - ~15-20 minutes depending on content length
 - Can be run end-to-end as final validation
 
 ---
 
-## Summary: Script Reduction
-
-### Original Test Cases: **8 individual scripts**
-
-### Consolidated E2E Suites: **4 comprehensive scripts**
+## Summary: Script
 
 | E2E Suite | Test Cases Covered | Reduction |
 |-----------|-------------------|-----------|
@@ -236,7 +234,7 @@ Full realistic flow of anonymous user exploring, discovering, and consuming vari
 
 ## Implementation Strategy
 
-### Execution Options:
+## Execution Options:
 
 **Option 1: Modular Execution (Recommended)**
 - Run Suite 1, 2, 3 independently

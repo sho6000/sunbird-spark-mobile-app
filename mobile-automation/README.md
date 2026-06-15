@@ -74,7 +74,7 @@ Set these after installing Android Studio:
 
 ---
 
-## Manual Setup (if not using install.sh)
+## Manual Setup
 
 ```bash
 # Install JS dependencies
