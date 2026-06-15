@@ -5,221 +5,356 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 
-const resultsDir = path.join(projectRoot, 'reports', 'junit-results');
-const reportDir = path.join(projectRoot, 'reports', 'md-report');
+const resultsDir    = path.join(projectRoot, 'reports', 'junit-results');
+const reportDir     = path.join(projectRoot, 'reports', 'md-report');
 const screenshotsDir = path.join(projectRoot, 'reports', 'android', 'test-results');
 
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-
-function escapeMd(text) {
-    return text.replace(/\|/g, '\\|').replace(/\n/g, ' ');
+function escapeMd(text = '') {
+  return String(text).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 }
 
+function formatDuration(seconds) {
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = (seconds % 60).toFixed(0).padStart(2, '0');
+  return `${m}m ${s}s`;
+}
+
+// ---------------------------------------------------------------------------
+// XML attribute / content extraction
+// ---------------------------------------------------------------------------
+
+function attr(tag, name) {
+  // Collapse whitespace first so multiline/indented attributes are found reliably
+  const normalised = tag.replace(/\s+/g, ' ');
+  const m = normalised.match(new RegExp(`(?:^|\\s)${name}="([^"]*)"`));
+  return m ? m[1] : '';
+}
+
+function innerText(block, tagName) {
+  const m = block.match(new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i'));
+  return m ? m[1].trim() : '';
+}
+
+function attrOrInner(block, tagName) {
+  const tagMatch = block.match(new RegExp(`<${tagName}([^>]*)>([\\s\\S]*?)<\\/${tagName}>`, 'i'));
+  if (!tagMatch) {
+    // self-closing: <failure message="..." />
+    const self = block.match(new RegExp(`<${tagName}([^>]*)\\/?>`, 'i'));
+    if (self) return { attrStr: self[1], body: '' };
+    return null;
+  }
+  return { attrStr: tagMatch[1], body: tagMatch[2].trim() };
+}
+
+// ---------------------------------------------------------------------------
+// Parse a single <testcase> block into a structured object
+// ---------------------------------------------------------------------------
+
+function parseTestCase(tcTag, tcBlock) {
+  const name      = attr(tcTag, 'name');
+  const className = attr(tcTag, 'classname');
+  const time      = parseFloat(attr(tcTag, 'time') || '0');
+
+  let status       = 'passed';
+  let errorMessage = '';
+  let errorBody    = '';
+
+  const failure = attrOrInner(tcBlock, 'failure');
+  const error   = attrOrInner(tcBlock, 'error');
+
+  if (failure) {
+    status       = 'failed';
+    errorMessage = attr(failure.attrStr, 'message') || failure.body.split('\n')[0];
+    errorBody    = failure.body;
+  } else if (error) {
+    status       = 'error';
+    errorMessage = attr(error.attrStr, 'message') || error.body.split('\n')[0];
+    errorBody    = error.body;
+  } else if (/<skipped/i.test(tcBlock)) {
+    status = 'skipped';
+  }
+
+  return { name, class: className, time, status, errorMessage, errorBody };
+}
+
+// ---------------------------------------------------------------------------
+// Parse all <testsuite> blocks from an XML string
+// ---------------------------------------------------------------------------
+
 function parseJunitXml(xmlContent) {
-    const suites = [];
+  const suites = [];
 
-    const testsuiteRegex = /<testsuite[^>]*>/gs;
-    let suiteMatch;
+  // Match every <testsuite ...>...</testsuite> block (non-greedy).
+  // The \b prevents matching <testsuites> (the root wrapper element).
+  const suiteBlockRe = /<testsuite\b([^>]*)>([\s\S]*?)<\/testsuite>/gi;
+  let suiteMatch;
 
-    while ((suiteMatch = testsuiteRegex.exec(xmlContent)) !== null) {
-        const tag = suiteMatch[0];
-        const suiteName = tag.match(/\bname="([^"]*)"/)?.[1] || '';
-        const totalTests = parseInt(tag.match(/\btests="(\d+)"/)?.[1] || '0', 10);
-        const totalErrors = parseInt(tag.match(/\berrors="(\d+)"/)?.[1] || '0', 10);
-        const totalFailures = parseInt(tag.match(/\bfailures="(\d+)"/)?.[1] || '0', 10);
-        const time = parseFloat(tag.match(/\btime="([^"]*)"/)?.[1] || '0');
+  while ((suiteMatch = suiteBlockRe.exec(xmlContent)) !== null) {
+    const [, attrStr, body] = suiteMatch;
 
-        const testCases = [];
+    const suiteName    = attr(attrStr, 'name');
+    const totalTests   = parseInt(attr(attrStr, 'tests')    || '0', 10);
+    const totalErrors  = parseInt(attr(attrStr, 'errors')   || '0', 10);
+    const totalFailures= parseInt(attr(attrStr, 'failures') || '0', 10);
+    const skipped      = parseInt(attr(attrStr, 'skipped')  || '0', 10);
+    const suiteTime    = parseFloat(attr(attrStr, 'time')   || '0');
+    const timestamp    = attr(attrStr, 'timestamp') || '';
+    const hostname     = attr(attrStr, 'hostname')  || '';
 
-        const suiteBlockEnd = xmlContent.indexOf('</testsuite>', suiteMatch.index);
-        const suiteBlock = xmlContent.slice(suiteMatch.index, suiteBlockEnd + 12);
+    const testCases = [];
 
-        const testcaseRegex = /<testcase[^>]*>/gs;
-        let tcMatch;
+    // Match each <testcase ...>...</testcase> (including self-closing).
+    const tcRe = /<testcase([^>]*)>([\s\S]*?)<\/testcase>|<testcase([^>]*)\/>/gi;
+    let tcMatch;
 
-        const failureRegex = /<failure[^>]*message="([^"]*)"[^>]*>([\s\S]*?)<\/failure>/g;
-        const failures = [];
-        let fMatch;
-        while ((fMatch = failureRegex.exec(suiteBlock)) !== null) {
-            failures.push({ message: fMatch[1], body: fMatch[2].trim() });
-        }
-
-        let failureIndex = 0;
-        while ((tcMatch = testcaseRegex.exec(suiteBlock)) !== null) {
-            const tcTag = tcMatch[0];
-            const tcName = tcTag.match(/\bname="([^"]*)"/)?.[1] || '';
-            const tcClass = tcTag.match(/\bclassname="([^"]*)"/)?.[1] || '';
-            const tcTime = parseFloat(tcTag.match(/\btime="([^"]*)"/)?.[1] || '0');
-
-            const tcEndIndex = suiteBlock.indexOf('</testcase>', tcMatch.index);
-            const tcBlock = suiteBlock.slice(tcMatch.index, tcEndIndex + 11);
-
-            let status = 'passed';
-            let errorMessage = '';
-            let errorBody = '';
-
-            if (tcBlock.includes('<failure')) {
-                status = 'failed';
-                if (failures[failureIndex]) {
-                    errorMessage = failures[failureIndex].message;
-                    errorBody = failures[failureIndex].body;
-                }
-                failureIndex++;
-            } else if (tcBlock.includes('<error')) {
-                status = 'error';
-                const errMatch = tcBlock.match(/<error[^>]*message="([^"]*)"[^>]*>/);
-                if (errMatch) errorMessage = errMatch[1];
-                failureIndex++;
-            } else if (tcBlock.includes('<skipped')) {
-                status = 'skipped';
-            }
-
-            testCases.push({
-                name: tcName,
-                class: tcClass,
-                time: tcTime,
-                status,
-                errorMessage,
-                errorBody,
-            });
-        }
-
-        const passed = totalTests - totalFailures - totalErrors;
-
-        suites.push({
-            name: suiteName.replace(/\.e2e\.ts$/, ''),
-            file: suiteName,
-            total: totalTests,
-            passed,
-            failed: totalFailures + totalErrors,
-            time,
-            testCases,
-        });
+    while ((tcMatch = tcRe.exec(body)) !== null) {
+      const tcTag   = tcMatch[1] ?? tcMatch[3];
+      const tcBlock = tcMatch[2] ?? '';
+      testCases.push(parseTestCase(tcTag, tcBlock));
     }
 
-    return suites;
+    const passed = totalTests - totalFailures - totalErrors - skipped;
+
+    suites.push({
+      name:      suiteName.replace(/\.e2e\.ts$/, ''),
+      file:      suiteName,
+      total:     totalTests,
+      passed:    Math.max(0, passed),
+      failed:    totalFailures + totalErrors,
+      skipped,
+      time:      suiteTime,
+      timestamp,
+      hostname,
+      testCases,
+    });
+  }
+
+  return suites;
+}
+
+// ---------------------------------------------------------------------------
+// Screenshot lookup
+// ---------------------------------------------------------------------------
+
+let _screenshotCache = null;
+function getScreenshots() {
+  if (_screenshotCache) return _screenshotCache;
+  if (!fs.existsSync(screenshotsDir)) return (_screenshotCache = []);
+  _screenshotCache = fs.readdirSync(screenshotsDir);
+  return _screenshotCache;
 }
 
 function findScreenshot(suiteName) {
-    const baseName = suiteName.replace(/\.e2e\.ts$/, '');
-    if (!fs.existsSync(screenshotsDir)) return null;
-    const files = fs.readdirSync(screenshotsDir);
-    const match = files.find(f => f.includes(baseName) && (f.endsWith('.png') || f.endsWith('.jpg')));
-    return match ? path.join(screenshotsDir, match) : null;
+  const baseName = suiteName.replace(/\.e2e\.ts$/, '');
+  const files    = getScreenshots();
+  const match    = files.find(f => f.includes(baseName) && /\.(png|jpg|jpeg|webp)$/i.test(f));
+  return match ? path.join(screenshotsDir, match) : null;
 }
 
-function generateMarkdown(suites) {
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const timeStr = now.toLocaleTimeString();
+// ---------------------------------------------------------------------------
+// Markdown generation
+// ---------------------------------------------------------------------------
 
-    let md = `# Mobile Automation Test Report\n\n`;
-    md += `**Date:** ${dateStr} ${timeStr}\n\n`;
-
-    md += `---\n\n## Summary\n\n`;
-    md += `| Suite | Status | Passed | Failed | Total | Time |\n`;
-    md += `|-------|--------|--------|--------|-------|------|\n`;
-
-    let totalPassed = 0;
-    let totalFailed = 0;
-    let totalAll = 0;
-
-    for (const suite of suites) {
-        const statusIcon = suite.failed > 0 ? '❌' : '✅';
-        md += `| ${suite.file} | ${statusIcon} | ${suite.passed} | ${suite.failed} | ${suite.total} | ${suite.time.toFixed(1)}s |\n`;
-        totalPassed += suite.passed;
-        totalFailed += suite.failed;
-        totalAll += suite.total;
-    }
-
-    const overallIcon = totalFailed > 0 ? '❌' : '✅';
-    md += `| **Total** | ${overallIcon} | **${totalPassed}** | **${totalFailed}** | **${totalAll}** | |\n\n`;
-
-    md += `---\n\n## Failed Tests\n\n`;
-
-    let failedCount = 0;
-    for (const suite of suites) {
-        const failedTests = suite.testCases.filter(tc => tc.status === 'failed' || tc.status === 'error');
-        if (failedTests.length === 0) continue;
-
-        for (const tc of failedTests) {
-            failedCount++;
-            md += `### ${failedCount}. ${suite.file} — ${tc.name}\n\n`;
-            md += `**Status:** \`${tc.status}\`\n\n`;
-            md += `**Error:**\n\`\`\`\n${escapeMd(tc.errorMessage || tc.errorBody || 'No error message')}\n\`\`\`\n\n`;
-            if (tc.errorBody && tc.errorBody !== tc.errorMessage) {
-                md += `**Details:**\n\`\`\`\n${escapeMd(tc.errorBody)}\n\`\`\`\n\n`;
-            }
-
-            const screenshot = findScreenshot(suite.file);
-            if (screenshot) {
-                const relPath = path.relative(projectRoot, screenshot);
-                md += `**Screenshot:** \`${relPath}\`\n\n`;
-            }
-        }
-    }
-
-    if (failedCount === 0) {
-        md += `All tests passed! 🎉\n\n`;
-    }
-
-    md += `---\n\n## All Tests\n\n`;
-
-    for (const suite of suites) {
-        md += `### ${suite.file}\n\n`;
-        md += `| Test | Status | Time |\n`;
-        md += `|------|--------|------|\n`;
-        for (const tc of suite.testCases) {
-            const icon = tc.status === 'passed' ? '✅' : tc.status === 'failed' ? '❌' : tc.status === 'error' ? '⚠️' : '⏭️';
-            md += `| ${escapeMd(tc.name)} | ${icon} ${tc.status} | ${tc.time.toFixed(1)}s |\n`;
-        }
-        md += '\n';
-    }
-
-    md += `---\n*Report generated by mobile-automation/config/generate-md-report.js*\n`;
-
-    return md;
+function statusIcon(status) {
+  return { passed: '✅', failed: '❌', error: '⚠️', skipped: '⏭️' }[status] ?? '❓';
 }
+
+function generateSummaryTable(suites) {
+  const lines = [
+    `| Suite | Status | Passed | Failed | Skipped | Total | Duration |`,
+    `|-------|--------|-------:|-------:|--------:|------:|---------|`,
+  ];
+
+  let totalPassed = 0, totalFailed = 0, totalSkipped = 0, totalAll = 0, totalTime = 0;
+
+  for (const s of suites) {
+    const icon = s.failed > 0 ? '❌' : '✅';
+    lines.push(
+      `| \`${escapeMd(s.file)}\` | ${icon} | ${s.passed} | ${s.failed} | ${s.skipped} | ${s.total} | ${formatDuration(s.time)} |`
+    );
+    totalPassed  += s.passed;
+    totalFailed  += s.failed;
+    totalSkipped += s.skipped;
+    totalAll     += s.total;
+    totalTime    += s.time;
+  }
+
+  const overallIcon = totalFailed > 0 ? '❌' : '✅';
+  lines.push(
+    `| **Total** | ${overallIcon} | **${totalPassed}** | **${totalFailed}** | **${totalSkipped}** | **${totalAll}** | **${formatDuration(totalTime)}** |`
+  );
+
+  return lines.join('\n');
+}
+
+function generateFailedSection(suites) {
+  const lines = [];
+  let failedCount = 0;
+
+  for (const suite of suites) {
+    const failedTests = suite.testCases.filter(tc => tc.status === 'failed' || tc.status === 'error');
+    if (failedTests.length === 0) continue;
+
+    for (const tc of failedTests) {
+      failedCount++;
+      lines.push(`### ${failedCount}. \`${suite.file}\` — ${tc.name}`);
+      lines.push('');
+      lines.push(`**Status:** \`${tc.status}\`  `);
+      lines.push(`**Class:** \`${tc.class || 'n/a'}\`  `);
+      lines.push(`**Duration:** ${formatDuration(tc.time)}`);
+      lines.push('');
+
+      const primaryMessage = tc.errorMessage || tc.errorBody || 'No error message';
+      lines.push('**Error:**');
+      lines.push('```');
+      lines.push(primaryMessage);
+      lines.push('```');
+
+      if (tc.errorBody && tc.errorBody !== tc.errorMessage && tc.errorBody.length > 0) {
+        lines.push('');
+        lines.push('<details><summary>Full stack trace</summary>');
+        lines.push('');
+        lines.push('```');
+        lines.push(tc.errorBody);
+        lines.push('```');
+        lines.push('</details>');
+      }
+
+      const screenshot = findScreenshot(suite.file);
+      if (screenshot) {
+        const relPath = path.relative(projectRoot, screenshot);
+        lines.push('');
+        lines.push(`**Screenshot:** [\`${relPath}\`](./${relPath})`);
+      }
+
+      lines.push('');
+    }
+  }
+
+  if (failedCount === 0) {
+    lines.push('All tests passed! 🎉');
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function generateAllTestsSection(suites) {
+  const lines = [];
+
+  for (const suite of suites) {
+    lines.push(`### \`${suite.file}\``);
+    if (suite.timestamp) lines.push(`> Run at: ${suite.timestamp}${suite.hostname ? ` on \`${suite.hostname}\`` : ''}`);
+    lines.push('');
+    lines.push('| Test | Status | Duration |');
+    lines.push('|------|--------|------:|');
+
+    for (const tc of suite.testCases) {
+      const icon = statusIcon(tc.status);
+      lines.push(`| ${escapeMd(tc.name)} | ${icon} \`${tc.status}\` | ${formatDuration(tc.time)} |`);
+    }
+
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+function generateMarkdown(suites, meta = {}) {
+  const now     = new Date();
+  const dateStr = now.toISOString().replace('T', ' ').split('.')[0] + ' UTC';
+
+  const totalFailed = suites.reduce((n, s) => n + s.failed, 0);
+  const overallStatus = totalFailed > 0
+    ? `🔴 **FAILED** — ${totalFailed} test(s) failing`
+    : '🟢 **PASSED** — all tests green';
+
+  const parts = [
+    `# Mobile Automation Test Report`,
+    '',
+    `> ${overallStatus}`,
+    '',
+    `| | |`,
+    `|---|---|`,
+    `| **Generated** | ${dateStr} |`,
+    meta.sourceFiles ? `| **Source files** | ${meta.sourceFiles} |` : null,
+    '',
+    `---`,
+    '',
+    `## Summary`,
+    '',
+    generateSummaryTable(suites),
+    '',
+    `---`,
+    '',
+    `## Failed tests`,
+    '',
+    generateFailedSection(suites),
+    `---`,
+    '',
+    `## All tests`,
+    '',
+    generateAllTestsSection(suites),
+    `---`,
+    `*Generated by \`mobile-automation/config/generate-md-report.js\`*`,
+  ].filter(line => line !== null);
+
+  return parts.join('\n');
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+// ---------------------------------------------------------------------------
 
 function main() {
-    if (!fs.existsSync(resultsDir)) {
-        console.error(`JUnit results directory not found: ${resultsDir}`);
-        console.error('Run tests first: cd config && npm run wdio');
-        process.exit(1);
-    }
+  if (!fs.existsSync(resultsDir)) {
+    console.error(`❌ JUnit results directory not found: ${resultsDir}`);
+    console.error('   Run tests first: cd config && npm run wdio');
+    process.exit(1);
+  }
 
-    const junitFiles = fs.readdirSync(resultsDir)
-        .filter(f => f.startsWith('junit-') && f.endsWith('.xml'))
-        .sort();
+  const junitFiles = fs.readdirSync(resultsDir)
+    .filter(f => f.startsWith('junit-') && f.endsWith('.xml'))
+    .sort();
 
-    if (junitFiles.length === 0) {
-        console.error(`No JUnit XML files found in ${resultsDir}`);
-        process.exit(1);
-    }
+  if (junitFiles.length === 0) {
+    console.error(`❌ No JUnit XML files found in ${resultsDir}`);
+    process.exit(1);
+  }
 
-    let allSuites = [];
-    for (const file of junitFiles) {
-        const xmlContent = fs.readFileSync(path.join(resultsDir, file), 'utf-8');
-        const suites = parseJunitXml(xmlContent);
-        allSuites.push(...suites);
-    }
+  const allSuites = [];
+  for (const file of junitFiles) {
+    const xml    = fs.readFileSync(path.join(resultsDir, file), 'utf-8');
+    const suites = parseJunitXml(xml);
+    allSuites.push(...suites);
+  }
 
-    if (allSuites.length === 0) {
-        console.error('No test suites found in JUnit results');
-        process.exit(1);
-    }
+  if (allSuites.length === 0) {
+    console.error('❌ No test suites found in JUnit results');
+    process.exit(1);
+  }
 
-    fs.mkdirSync(reportDir, { recursive: true });
+  fs.mkdirSync(reportDir, { recursive: true });
 
-    const md = generateMarkdown(allSuites);
+  const md = generateMarkdown(allSuites, { sourceFiles: junitFiles.length });
 
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const ts = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-    const reportFile = path.join(reportDir, `Test-Report-${dateStr}-${ts}.md`);
+  const ts         = now => now.toTimeString().split(' ')[0].replace(/:/g, '-');
+  const dateStr    = new Date().toISOString().split('T')[0];
+  const reportFile = path.join(reportDir, `Test-Report-${dateStr}-${ts(new Date())}.md`);
 
-    fs.writeFileSync(reportFile, md, 'utf-8');
-    console.log(`✅ Report generated: ${reportFile}`);
+  fs.writeFileSync(reportFile, md, 'utf-8');
+  console.log(`✅ Report written: ${reportFile}`);
+
+  const totalFailed = allSuites.reduce((n, s) => n + s.failed, 0);
+  if (totalFailed > 0) {
+    console.error(`\n⚠️  ${totalFailed} test(s) failed — exiting with code 1`);
+    process.exit(1);
+  }
 }
 
 main();

@@ -46,13 +46,13 @@ mobile-automation/
 │       └── consumption/                 # [Authenticated consumption tests](specs/android/consumption/README.md)
 ├── reports/
 │   └── android/
-│       ├── test-results/               # Test output & screenshots
-│       └── screenshots/
+│       ├── test-results/               # Test output &
+│       └── screenshots/            # Screenshots captured during tests
+|
 ├── install.sh                       # One-click setup
 └── README.md                        # This file
 ```
 
----
 
 ## Prerequisites
 

@@ -18,7 +18,7 @@ function parseCard(text: string): ParsedCard {
     };
 }
 
-describe('E2E Suite 1: Anonymous Home & Explore Discovery (TC_01, TC_04)', () => {
+describe('E2E Suite 1: Anonymous Home & Explore Discovery', () => {
     before(async () => {
         await ensureAnonymous(browser);
     });
