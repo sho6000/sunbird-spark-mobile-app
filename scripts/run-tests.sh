@@ -4,28 +4,6 @@ set -euo pipefail
 # Navigate to wdio config dir relative to this script's location
 cd "$(dirname "$0")/../mobile-automation/config"
 
-# -------------------------------------------------------
-# Dismiss any ANR / crash dialogs that appear at boot
-# (Pixel Launcher can ANR on resource-constrained CI VMs)
-# -------------------------------------------------------
-echo "Dismissing any system dialogs..."
-adb shell input keyevent 4 || true
-adb shell input keyevent 4 || true
-adb shell input keyevent 4 || true
-sleep 3
-
-# Force-stop the launcher to clear any ANR state, then relaunch
-echo "Resetting Pixel Launcher..."
-adb shell am force-stop com.google.android.apps.nexuslauncher || true
-adb shell am force-stop com.android.launcher3 || true
-sleep 2
-
-# Dismiss any remaining dialogs (Close app / Wait popups)
-adb shell input keyevent KEYCODE_BACK || true
-sleep 1
-
-echo "System ready. Starting tests..."
-
 SCOPE="${SCOPE:-all}"
 SPEC="${SPEC:-}"
 
