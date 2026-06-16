@@ -98,10 +98,61 @@ jobs:
           target: google_apis
           arch: x86_64
           avd-name: Pixel_3_API_35
-          emulator-options: -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect
+          # FIX 1: Added -no-snapshot-load to avoid stale snapshot state
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-load
           disable-animations: true
+          # FIX 2: Increased boot timeout to give the emulator more time
+          boot-timeout: 900
+          cores: 2
+          ram-size: 2048
           working-directory: ./mobile-automation
           script: |
+            # -------------------------------------------------------
+            # FIX 3: Explicitly wait for ADB transport to come online
+            # The emulator runner marks "booted" before ADB transport
+            # is fully stable. This blocks until the device is ready.
+            # -------------------------------------------------------
+            echo "Waiting for ADB device to come online..."
+            adb wait-for-device
+
+            # -------------------------------------------------------
+            # FIX 4: Poll sys.boot_completed until it returns "1"
+            # This is separate from ADB transport — the system services
+            # (including UIAutomator2 host) need boot to fully complete.
+            # -------------------------------------------------------
+            echo "Waiting for full system boot..."
+            BOOT_WAIT=0
+            BOOT_TIMEOUT=120
+            until adb -s emulator-5554 shell getprop sys.boot_completed 2>/dev/null | grep -q "^1$"; do
+              if [ $BOOT_WAIT -ge $BOOT_TIMEOUT ]; then
+                echo "ERROR: Emulator did not fully boot within ${BOOT_TIMEOUT}s"
+                adb devices -l
+                exit 1
+              fi
+              echo "  Still booting... (${BOOT_WAIT}s elapsed)"
+              sleep 5
+              BOOT_WAIT=$((BOOT_WAIT + 5))
+            done
+            echo "Emulator fully booted after ${BOOT_WAIT}s"
+
+            # -------------------------------------------------------
+            # FIX 5: Disable animations via adb (belt-and-suspenders
+            # alongside the runner's disable-animations: true).
+            # Animations cause UIAutomator2 timing failures.
+            # -------------------------------------------------------
+            echo "Disabling animations..."
+            adb -s emulator-5554 shell settings put global window_animation_scale 0.0
+            adb -s emulator-5554 shell settings put global transition_animation_scale 0.0
+            adb -s emulator-5554 shell settings put global animator_duration_scale 0.0
+
+            # -------------------------------------------------------
+            # FIX 6: Confirm device is visible and responsive
+            # -------------------------------------------------------
+            echo "ADB device status:"
+            adb devices -l
+            adb -s emulator-5554 shell getprop ro.build.version.release
+
+            echo "Starting Appium and test suite..."
             cd config
             SCOPE="${{ inputs.scope }}"
             SPEC="${{ inputs.spec }}"
@@ -111,19 +162,21 @@ jobs:
               npx wdio run ./wdio.conf.ts --spec "../$SPEC"
             elif [ "$SCOPE" = "anonymous" ]; then
               echo "Running anonymous suites only"
-              npx wdio run ./wdio.conf.ts --spec "../specs/android/anonymous_user_consumption/suite0-dismiss-onboarding.e2e.ts" \
-                                          --spec "../specs/android/anonymous_user_consumption/suite1-guest-home-and-explore-browsing.e2e.ts" \
-                                          --spec "../specs/android/anonymous_user_consumption/suite2-guest-multi-format-player.e2e.ts" \
-                                          --spec "../specs/android/anonymous_user_consumption/suite3-guest-content-details-and-login-redirect.e2e.ts"
+              npx wdio run ./wdio.conf.ts \
+                --spec "../specs/android/anonymous_user_consumption/suite0-dismiss-onboarding.e2e.ts" \
+                --spec "../specs/android/anonymous_user_consumption/suite1-guest-home-and-explore-browsing.e2e.ts" \
+                --spec "../specs/android/anonymous_user_consumption/suite2-guest-multi-format-player.e2e.ts" \
+                --spec "../specs/android/anonymous_user_consumption/suite3-guest-content-details-and-login-redirect.e2e.ts"
             elif [ "$SCOPE" = "consumption" ]; then
               echo "Running consumption suites only"
-              npx wdio run ./wdio.conf.ts --spec "../specs/android/consumption/suite1-home-in-progress-courses.e2e.ts" \
-                                          --spec "../specs/android/consumption/suite2-explore-content-filtering.e2e.ts" \
-                                          --spec "../specs/android/consumption/suite3-multi-format-content-player.e2e.ts" \
-                                          --spec "../specs/android/consumption/suite4-course-enrollment-and-progress.e2e.ts" \
-                                          --spec "../specs/android/consumption/suite5-certificate-preview-and-download.e2e.ts" \
-                                          --spec "../specs/android/consumption/suite6-my-learning-cross-verification.e2e.ts" \
-                                          --spec "../specs/android/consumption/suite8-profile-data-consent-toggle.e2e.ts"
+              npx wdio run ./wdio.conf.ts \
+                --spec "../specs/android/consumption/suite1-home-in-progress-courses.e2e.ts" \
+                --spec "../specs/android/consumption/suite2-explore-content-filtering.e2e.ts" \
+                --spec "../specs/android/consumption/suite3-multi-format-content-player.e2e.ts" \
+                --spec "../specs/android/consumption/suite4-course-enrollment-and-progress.e2e.ts" \
+                --spec "../specs/android/consumption/suite5-certificate-preview-and-download.e2e.ts" \
+                --spec "../specs/android/consumption/suite6-my-learning-cross-verification.e2e.ts" \
+                --spec "../specs/android/consumption/suite8-profile-data-consent-toggle.e2e.ts"
             else
               echo "Running all suites"
               npm run wdio
