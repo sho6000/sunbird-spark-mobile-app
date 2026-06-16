@@ -1,4 +1,4 @@
-name: Mobile E2E Tests
+name: Automation E2E Tests
 
 on:
   workflow_dispatch:
@@ -111,6 +111,9 @@ jobs:
           cores: 2
           ram-size: 2048
           script: bash scripts/run-tests.sh
+
+      - name: Check Active Density
+        run: adb shell wm density
 
       - name: Generate MD report
         if: always()

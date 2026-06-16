@@ -8,18 +8,36 @@ End-to-end test suite for Android mobile apps using WebdriverIO + Appium. Design
 
 ---
 
-## Quick Start
+## Running Tests
+
+### Option 1 — GitHub Actions (CI)
+
+1. Fork the repo
+
+2. Add APK: 
+```bash 
+git add -f mobile-automation/app/android/app-debug.apk && git commit -m "add APK" && git push
+```
+3. Add 3 secrets: 
+ `SUNBIRD_EMAIL`, `SUNBIRD_PASSWORD`, `SUNBIRD_USERNAME` in
+ `Settings → Secrets → Actions`
+
+4. Go to **Actions** → "Mobile E2E Tests" → **"Run workflow"**
+
+Pick scope: `all`, `anonymous`, or `consumption`. Download results from **Artifacts** when done.
+
+### Option 2 — Locally
 
 ```bash
-# 1. Run the setup script
 chmod +x install.sh && ./install.sh
-
-# 2. Edit your .env file with credentials and device settings
-Update the .env file with your credentials.
-
-# 3. Run all tests (Appium is auto-managed)
+# Edit .env with your credentials
 cd config && npm run test
 ```
+
+### Session Handling
+
+The app session is **preserved across suites** (`appium:noReset: true`). The login state is kept between consumption suites — `login()` is called in each suite but skips if already authenticated. Anonymous suites automatically log out if a previous session is found, ensuring a clean guest state.
+
 ---
 
 ## Project Structure
@@ -103,7 +121,7 @@ SUNBIRD_USERNAME=YourUserName
 
 # ── Appium / Device Config ──
 APPIUM_PORT=4723
-DEVICE_NAME=Android GoogleAPI Emulator
+DEVICE_NAME=Pixel_3_API_35
 PLATFORM_VERSION=15
 APP_PATH=./app/android/app-debug.apk
 ```
@@ -117,36 +135,6 @@ Replace the values with your own:
 ### Custom capabilities
 
 For additional Appium capabilities (e.g. `appium:udid`, `appium:noReset`), edit `config/wdio.conf.ts` in the `capabilities` array.
-
----
-
-## Running Tests
-
-```bash
-# All Android suites + generate report (recommended)
-cd config && npm run test
-
-# All Android suites only
-cd config && npm run wdio
-
-# Generate Markdown report from last run (without re-running tests)
-cd config && npm run report
-
-# Single suite (temporary — edit specs array in wdio.conf.ts)
-# or use --spec flag:
-cd config
-
-npx wdio run ./wdio.conf.ts --spec ../specs/android/consumption/suite1-home-in-progress-courses.e2e.ts
-
-npx wdio run ./wdio.conf.ts --spec ../specs/android/anonymous_user_consumption/suite1-guest-home-and-explore-browsing.e2e.ts
-
-# If you want individual reports run the script seperately and
-# run the ``npm run report`` after the script is executed
-```
-
-### Session Handling
-
-The app session is **preserved across suites** (`appium:noReset: true`). The login state is kept between consumption suites — `login()` is called in each suite but skips if already authenticated. Anonymous suites automatically log out if a previous session is found, ensuring a clean guest state.
 
 ---
 
