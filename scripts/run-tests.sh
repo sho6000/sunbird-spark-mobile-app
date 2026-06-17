@@ -4,6 +4,11 @@ set -euo pipefail
 # Navigate to wdio config dir relative to this script's location
 cd "$(dirname "$0")/../mobile-automation/config"
 
+# Set screen size and density for CI emulator
+adb shell wm size 1080x1920
+adb shell wm density 240
+sleep 2
+
 SCOPE="${SCOPE:-all}"
 SPEC="${SPEC:-}"
 
