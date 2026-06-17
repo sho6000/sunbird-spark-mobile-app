@@ -13,10 +13,6 @@ const screenshotsDir = path.join(projectRoot, 'reports', 'android', 'test-result
 // Helpers
 // ---------------------------------------------------------------------------
 
-function escapeMd(text = '') {
-  return String(text).replace(/\|/g, '\\|').replace(/\n/g, ' ');
-}
-
 function formatDuration(seconds) {
   if (seconds < 60) return `${seconds.toFixed(1)}s`;
   const m = Math.floor(seconds / 60);
@@ -24,8 +20,19 @@ function formatDuration(seconds) {
   return `${m}m ${s}s`;
 }
 
+function padEnd(str, len) {
+  return String(str).padEnd(len);
+}
+
+function padStart(str, len) {
+  return String(str).padStart(len);
+}
+
+const LINE  = '='.repeat(72);
+const DASH  = '-'.repeat(72);
+
 // ---------------------------------------------------------------------------
-// XML attribute / content extraction
+// XML parsing
 // ---------------------------------------------------------------------------
 
 function attr(tag, name) {
@@ -43,10 +50,6 @@ function attrOrInner(block, tagName) {
   }
   return { attrStr: tagMatch[1], body: tagMatch[2].trim() };
 }
-
-// ---------------------------------------------------------------------------
-// Parse a single <testcase> block
-// ---------------------------------------------------------------------------
 
 function parseTestCase(tcTag, tcBlock) {
   const name      = attr(tcTag, 'name');
@@ -72,10 +75,6 @@ function parseTestCase(tcTag, tcBlock) {
 
   return { name, class: className, time, status, errorMessage, errorBody };
 }
-
-// ---------------------------------------------------------------------------
-// Parse all <testsuite> blocks
-// ---------------------------------------------------------------------------
 
 function parseJunitXml(xmlContent) {
   const suites = [];
@@ -143,126 +142,12 @@ function findScreenshot(suiteName) {
 }
 
 // ---------------------------------------------------------------------------
-// Markdown generation — clean standard README style
+// Report generation — plain JUnit console style
 // ---------------------------------------------------------------------------
 
-function statusBadge(failed, total) {
-  return failed > 0
-    ? `![FAILED](https://img.shields.io/badge/tests-FAILED-red)`
-    : `![PASSED](https://img.shields.io/badge/tests-PASSED-brightgreen)`;
-}
-
-function generateSummaryTable(suites) {
-  const lines = [
-    '| Suite | Result | Passed | Failed | Skipped | Duration |',
-    '|-------|--------|-------:|-------:|--------:|---------:|',
-  ];
-
-  let totalPassed = 0, totalFailed = 0, totalSkipped = 0, totalTime = 0;
-
-  for (const s of suites) {
-    const result = s.failed > 0 ? '❌ FAIL' : '✅ PASS';
-    lines.push(
-      `| ${escapeMd(s.name)} | ${result} | ${s.passed} | ${s.failed} | ${s.skipped} | ${formatDuration(s.time)} |`
-    );
-    totalPassed  += s.passed;
-    totalFailed  += s.failed;
-    totalSkipped += s.skipped;
-    totalTime    += s.time;
-  }
-
-  lines.push('|---|---|---|---|---|---|');
-  const overallResult = totalFailed > 0 ? '❌ FAIL' : '✅ PASS';
-  lines.push(
-    `| **Total** | **${overallResult}** | **${totalPassed}** | **${totalFailed}** | **${totalSkipped}** | **${formatDuration(totalTime)}** |`
-  );
-
-  return lines.join('\n');
-}
-
-function generateFailedSection(suites) {
-  const lines = [];
-  let failedCount = 0;
-
-  for (const suite of suites) {
-    const failedTests = suite.testCases.filter(tc => tc.status === 'failed' || tc.status === 'error');
-    if (failedTests.length === 0) continue;
-
-    for (const tc of failedTests) {
-      failedCount++;
-      lines.push(`#### ${failedCount}. ${tc.name}`);
-      lines.push('');
-      lines.push(`| Field | Value |`);
-      lines.push(`|-------|-------|`);
-      lines.push(`| Suite | ${suite.name} |`);
-      lines.push(`| Status | \`${tc.status}\` |`);
-      lines.push(`| Duration | ${formatDuration(tc.time)} |`);
-      lines.push('');
-      lines.push('**Error message**');
-      lines.push('```');
-      lines.push(tc.errorMessage || tc.errorBody || 'No error message');
-      lines.push('```');
-
-      if (tc.errorBody && tc.errorBody !== tc.errorMessage && tc.errorBody.length > 0) {
-        lines.push('');
-        lines.push('<details>');
-        lines.push('<summary>Stack trace</summary>');
-        lines.push('');
-        lines.push('```');
-        lines.push(tc.errorBody);
-        lines.push('```');
-        lines.push('</details>');
-      }
-
-      const screenshot = findScreenshot(suite.file);
-      if (screenshot) {
-        const relPath = path.relative(projectRoot, screenshot);
-        lines.push('');
-        lines.push(`**Screenshot:** [\`${path.basename(relPath)}\`](./${relPath})`);
-      }
-
-      lines.push('');
-      lines.push('---');
-      lines.push('');
-    }
-  }
-
-  if (failedCount === 0) {
-    lines.push('> No failures recorded.');
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-function generateAllTestsSection(suites) {
+function generateReport(suites, meta = {}) {
   const lines = [];
 
-  for (const suite of suites) {
-    lines.push(`### ${suite.name}`);
-    lines.push('');
-    if (suite.timestamp) {
-      lines.push(`> **Run at:** ${suite.timestamp}${suite.hostname ? ` on \`${suite.hostname}\`` : ''}`);
-      lines.push('');
-    }
-    lines.push('| # | Test | Result | Duration |');
-    lines.push('|---|------|--------|--------:|');
-
-    suite.testCases.forEach((tc, i) => {
-      const result = tc.status === 'passed' ? '✅ pass'
-                   : tc.status === 'failed' ? '❌ fail'
-                   : tc.status === 'skipped' ? '⏭️ skip'
-                   : '⚠️ error';
-      lines.push(`| ${i + 1} | ${escapeMd(tc.name)} | ${result} | ${formatDuration(tc.time)} |`);
-    });
-
-    lines.push('');
-  }
-
-  return lines.join('\n');
-}
-
-function generateMarkdown(suites, meta = {}) {
   const now     = new Date();
   const dateStr = now.toISOString().replace('T', ' ').split('.')[0] + ' UTC';
 
@@ -271,50 +156,101 @@ function generateMarkdown(suites, meta = {}) {
   const totalSkipped = suites.reduce((n, s) => n + s.skipped, 0);
   const totalAll     = suites.reduce((n, s) => n + s.total,   0);
   const totalTime    = suites.reduce((n, s) => n + s.time,    0);
-
   const overallResult = totalFailed > 0 ? 'FAILED' : 'PASSED';
-  const badge = totalFailed > 0
-    ? `![FAILED](https://img.shields.io/badge/Result-FAILED-red)`
-    : `![PASSED](https://img.shields.io/badge/Result-PASSED-brightgreen)`;
 
-  const parts = [
-    `# Test Report`,
-    '',
-    badge,
-    '',
-    '## Run details',
-    '',
-    `| Field | Value |`,
-    `|-------|-------|`,
-    `| Generated | ${dateStr} |`,
-    `| Result | **${overallResult}** |`,
-    `| Total tests | ${totalAll} |`,
-    `| Passed | ${totalPassed} |`,
-    `| Failed | ${totalFailed} |`,
-    `| Skipped | ${totalSkipped} |`,
-    `| Duration | ${formatDuration(totalTime)} |`,
-    meta.sourceFiles ? `| Suites run | ${meta.sourceFiles} |` : null,
-    '',
-    '---',
-    '',
-    '## Summary',
-    '',
-    generateSummaryTable(suites),
-    '',
-    '---',
-    '',
-    `## Failed tests`,
-    '',
-    generateFailedSection(suites),
-    '## All tests',
-    '',
-    generateAllTestsSection(suites),
-    '---',
-    '',
-    `*Generated by [generate-md-report.js](./generate-md-report.js)*`,
-  ].filter(line => line !== null);
+  // Header
+  lines.push('```');
+  lines.push(LINE);
+  lines.push('  MOBILE AUTOMATION TEST REPORT');
+  lines.push(`  Generated : ${dateStr}`);
+  lines.push(`  Result    : ${overallResult}`);
+  lines.push(`  Duration  : ${formatDuration(totalTime)}`);
+  if (meta.sourceFiles) {
+  lines.push(`  Suites    : ${meta.sourceFiles}`);
+  }
+  lines.push(LINE);
+  lines.push('');
 
-  return parts.join('\n');
+  // Summary
+  lines.push('SUMMARY');
+  lines.push(DASH);
+
+  for (const s of suites) {
+    const result   = s.failed > 0 ? 'FAIL' : 'PASS';
+    const fraction = `${s.passed}/${s.total}`;
+    const name     = padEnd(s.name, 42);
+    const res      = padEnd(result, 6);
+    const frac     = padEnd(fraction, 8);
+    const dur      = formatDuration(s.time);
+    lines.push(`${name}  ${res}  ${frac}  ${dur}`);
+  }
+
+  lines.push('');
+  lines.push(`Total: ${totalAll} tests | ${totalPassed} passed | ${totalFailed} failed | ${totalSkipped} skipped | ${formatDuration(totalTime)}`);
+  lines.push('');
+
+  // Failed tests
+  lines.push(LINE);
+  lines.push('FAILED TESTS');
+  lines.push(LINE);
+  lines.push('');
+
+  let hasFailures = false;
+  for (const suite of suites) {
+    const failedTests = suite.testCases.filter(tc => tc.status === 'failed' || tc.status === 'error');
+    for (const tc of failedTests) {
+      hasFailures = true;
+      lines.push(`[FAIL] ${suite.name} — ${tc.name}`);
+      lines.push(`       Duration : ${formatDuration(tc.time)}`);
+
+      const errLines = (tc.errorMessage || tc.errorBody || 'No error message').split('\n');
+      lines.push(`       Error    : ${errLines[0]}`);
+      for (let i = 1; i < errLines.length; i++) {
+        lines.push(`                  ${errLines[i]}`);
+      }
+
+      const screenshot = findScreenshot(suite.file);
+      if (screenshot) {
+        lines.push(`       Screenshot: ${path.basename(screenshot)}`);
+      }
+
+      lines.push('');
+    }
+  }
+
+  if (!hasFailures) {
+    lines.push('  No failures. All tests passed.');
+    lines.push('');
+  }
+
+  // All tests
+  lines.push(LINE);
+  lines.push('ALL TESTS');
+  lines.push(LINE);
+  lines.push('');
+
+  for (const suite of suites) {
+    lines.push(suite.name);
+    if (suite.timestamp) {
+      lines.push(`  Run at : ${suite.timestamp}`);
+    }
+
+    for (const tc of suite.testCases) {
+      const tag = tc.status === 'passed'  ? '[PASS]'
+                : tc.status === 'failed'  ? '[FAIL]'
+                : tc.status === 'skipped' ? '[SKIP]'
+                : '[ERR ]';
+      const name = padEnd(tc.name, 55);
+      lines.push(`  ${tag}  ${name}  ${formatDuration(tc.time)}`);
+    }
+
+    lines.push('');
+  }
+
+  lines.push(LINE);
+  lines.push('```');
+
+  return lines.join('\n');
 }
 
 // ---------------------------------------------------------------------------
@@ -323,7 +259,7 @@ function generateMarkdown(suites, meta = {}) {
 
 function main() {
   if (!fs.existsSync(resultsDir)) {
-    console.error(`❌ JUnit results directory not found: ${resultsDir}`);
+    console.error(`ERROR: JUnit results directory not found: ${resultsDir}`);
     process.exit(1);
   }
 
@@ -332,7 +268,7 @@ function main() {
     .sort();
 
   if (junitFiles.length === 0) {
-    console.error(`❌ No JUnit XML files found in ${resultsDir}`);
+    console.error(`ERROR: No JUnit XML files found in ${resultsDir}`);
     process.exit(1);
   }
 
@@ -344,13 +280,13 @@ function main() {
   }
 
   if (allSuites.length === 0) {
-    console.error('❌ No test suites found in JUnit results');
+    console.error('ERROR: No test suites found in JUnit results');
     process.exit(1);
   }
 
   fs.mkdirSync(reportDir, { recursive: true });
 
-  const md = generateMarkdown(allSuites, { sourceFiles: junitFiles.length });
+  const md = generateReport(allSuites, { sourceFiles: junitFiles.length });
 
   const now        = new Date();
   const dateStr    = now.toISOString().split('T')[0];
@@ -358,11 +294,11 @@ function main() {
   const reportFile = path.join(reportDir, `Test-Report-${dateStr}-${timeStr}.md`);
 
   fs.writeFileSync(reportFile, md, 'utf-8');
-  console.log(`✅ Report written: ${reportFile}`);
+  console.log(`Report written: ${reportFile}`);
 
   const totalFailed = allSuites.reduce((n, s) => n + s.failed, 0);
   if (totalFailed > 0) {
-    console.error(`\n⚠️  ${totalFailed} test(s) failed — exiting with code 1`);
+    console.error(`\n${totalFailed} test(s) failed`);
     process.exit(1);
   }
 }

@@ -124,7 +124,6 @@ jobs:
         run: |
           REPORT=$(ls -t ../reports/md-report/*.md 2>/dev/null | head -1)
           if [ -n "$REPORT" ]; then
-            echo "## 📋 Test Results" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             cat "$REPORT" >> $GITHUB_STEP_SUMMARY
           else
