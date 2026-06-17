@@ -102,7 +102,7 @@ jobs:
           SPEC: ${{ inputs.spec }}
         with:
           api-level: 35
-          target: google_apis
+          target: google_apis_playstore   # ← was google_apis
           arch: x86_64
           avd-name: Pixel_3_API_35
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-load
