@@ -5,8 +5,8 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, '..');
 
-const resultsDir    = path.join(projectRoot, 'reports', 'junit-results');
-const reportDir     = path.join(projectRoot, 'reports', 'md-report');
+const resultsDir     = path.join(projectRoot, 'reports', 'junit-results');
+const reportDir      = path.join(projectRoot, 'reports', 'md-report');
 const screenshotsDir = path.join(projectRoot, 'reports', 'android', 'test-results');
 
 // ---------------------------------------------------------------------------
@@ -29,21 +29,14 @@ function formatDuration(seconds) {
 // ---------------------------------------------------------------------------
 
 function attr(tag, name) {
-  // Collapse whitespace first so multiline/indented attributes are found reliably
   const normalised = tag.replace(/\s+/g, ' ');
   const m = normalised.match(new RegExp(`(?:^|\\s)${name}="([^"]*)"`));
   return m ? m[1] : '';
 }
 
-function innerText(block, tagName) {
-  const m = block.match(new RegExp(`<${tagName}[^>]*>([\\s\\S]*?)<\\/${tagName}>`, 'i'));
-  return m ? m[1].trim() : '';
-}
-
 function attrOrInner(block, tagName) {
   const tagMatch = block.match(new RegExp(`<${tagName}([^>]*)>([\\s\\S]*?)<\\/${tagName}>`, 'i'));
   if (!tagMatch) {
-    // self-closing: <failure message="..." />
     const self = block.match(new RegExp(`<${tagName}([^>]*)\\/?>`, 'i'));
     if (self) return { attrStr: self[1], body: '' };
     return null;
@@ -52,7 +45,7 @@ function attrOrInner(block, tagName) {
 }
 
 // ---------------------------------------------------------------------------
-// Parse a single <testcase> block into a structured object
+// Parse a single <testcase> block
 // ---------------------------------------------------------------------------
 
 function parseTestCase(tcTag, tcBlock) {
@@ -60,9 +53,7 @@ function parseTestCase(tcTag, tcBlock) {
   const className = attr(tcTag, 'classname');
   const time      = parseFloat(attr(tcTag, 'time') || '0');
 
-  let status       = 'passed';
-  let errorMessage = '';
-  let errorBody    = '';
+  let status = 'passed', errorMessage = '', errorBody = '';
 
   const failure = attrOrInner(tcBlock, 'failure');
   const error   = attrOrInner(tcBlock, 'error');
@@ -83,32 +74,27 @@ function parseTestCase(tcTag, tcBlock) {
 }
 
 // ---------------------------------------------------------------------------
-// Parse all <testsuite> blocks from an XML string
+// Parse all <testsuite> blocks
 // ---------------------------------------------------------------------------
 
 function parseJunitXml(xmlContent) {
   const suites = [];
-
-  // Match every <testsuite ...>...</testsuite> block (non-greedy).
-  // The \b prevents matching <testsuites> (the root wrapper element).
   const suiteBlockRe = /<testsuite\b([^>]*)>([\s\S]*?)<\/testsuite>/gi;
   let suiteMatch;
 
   while ((suiteMatch = suiteBlockRe.exec(xmlContent)) !== null) {
     const [, attrStr, body] = suiteMatch;
 
-    const suiteName    = attr(attrStr, 'name');
-    const totalTests   = parseInt(attr(attrStr, 'tests')    || '0', 10);
-    const totalErrors  = parseInt(attr(attrStr, 'errors')   || '0', 10);
-    const totalFailures= parseInt(attr(attrStr, 'failures') || '0', 10);
-    const skipped      = parseInt(attr(attrStr, 'skipped')  || '0', 10);
-    const suiteTime    = parseFloat(attr(attrStr, 'time')   || '0');
-    const timestamp    = attr(attrStr, 'timestamp') || '';
-    const hostname     = attr(attrStr, 'hostname')  || '';
+    const suiteName     = attr(attrStr, 'name');
+    const totalTests    = parseInt(attr(attrStr, 'tests')    || '0', 10);
+    const totalErrors   = parseInt(attr(attrStr, 'errors')   || '0', 10);
+    const totalFailures = parseInt(attr(attrStr, 'failures') || '0', 10);
+    const skipped       = parseInt(attr(attrStr, 'skipped')  || '0', 10);
+    const suiteTime     = parseFloat(attr(attrStr, 'time')   || '0');
+    const timestamp     = attr(attrStr, 'timestamp') || '';
+    const hostname      = attr(attrStr, 'hostname')  || '';
 
     const testCases = [];
-
-    // Match each <testcase ...>...</testcase> (including self-closing).
     const tcRe = /<testcase([^>]*)>([\s\S]*?)<\/testcase>|<testcase([^>]*)\/>/gi;
     let tcMatch;
 
@@ -157,36 +143,38 @@ function findScreenshot(suiteName) {
 }
 
 // ---------------------------------------------------------------------------
-// Markdown generation
+// Markdown generation — clean standard README style
 // ---------------------------------------------------------------------------
 
-function statusIcon(status) {
-  return { passed: '✅', failed: '❌', error: '⚠️', skipped: '⏭️' }[status] ?? '❓';
+function statusBadge(failed, total) {
+  return failed > 0
+    ? `![FAILED](https://img.shields.io/badge/tests-FAILED-red)`
+    : `![PASSED](https://img.shields.io/badge/tests-PASSED-brightgreen)`;
 }
 
 function generateSummaryTable(suites) {
   const lines = [
-    `| Suite | Status | Passed | Failed | Skipped | Total | Duration |`,
-    `|-------|--------|-------:|-------:|--------:|------:|---------|`,
+    '| Suite | Result | Passed | Failed | Skipped | Duration |',
+    '|-------|--------|-------:|-------:|--------:|---------:|',
   ];
 
-  let totalPassed = 0, totalFailed = 0, totalSkipped = 0, totalAll = 0, totalTime = 0;
+  let totalPassed = 0, totalFailed = 0, totalSkipped = 0, totalTime = 0;
 
   for (const s of suites) {
-    const icon = s.failed > 0 ? '❌' : '✅';
+    const result = s.failed > 0 ? '❌ FAIL' : '✅ PASS';
     lines.push(
-      `| \`${escapeMd(s.file)}\` | ${icon} | ${s.passed} | ${s.failed} | ${s.skipped} | ${s.total} | ${formatDuration(s.time)} |`
+      `| ${escapeMd(s.name)} | ${result} | ${s.passed} | ${s.failed} | ${s.skipped} | ${formatDuration(s.time)} |`
     );
     totalPassed  += s.passed;
     totalFailed  += s.failed;
     totalSkipped += s.skipped;
-    totalAll     += s.total;
     totalTime    += s.time;
   }
 
-  const overallIcon = totalFailed > 0 ? '❌' : '✅';
+  lines.push('|---|---|---|---|---|---|');
+  const overallResult = totalFailed > 0 ? '❌ FAIL' : '✅ PASS';
   lines.push(
-    `| **Total** | ${overallIcon} | **${totalPassed}** | **${totalFailed}** | **${totalSkipped}** | **${totalAll}** | **${formatDuration(totalTime)}** |`
+    `| **Total** | **${overallResult}** | **${totalPassed}** | **${totalFailed}** | **${totalSkipped}** | **${formatDuration(totalTime)}** |`
   );
 
   return lines.join('\n');
@@ -202,22 +190,23 @@ function generateFailedSection(suites) {
 
     for (const tc of failedTests) {
       failedCount++;
-      lines.push(`### ${failedCount}. \`${suite.file}\` — ${tc.name}`);
+      lines.push(`#### ${failedCount}. ${tc.name}`);
       lines.push('');
-      lines.push(`**Status:** \`${tc.status}\`  `);
-      lines.push(`**Class:** \`${tc.class || 'n/a'}\`  `);
-      lines.push(`**Duration:** ${formatDuration(tc.time)}`);
+      lines.push(`| Field | Value |`);
+      lines.push(`|-------|-------|`);
+      lines.push(`| Suite | ${suite.name} |`);
+      lines.push(`| Status | \`${tc.status}\` |`);
+      lines.push(`| Duration | ${formatDuration(tc.time)} |`);
       lines.push('');
-
-      const primaryMessage = tc.errorMessage || tc.errorBody || 'No error message';
-      lines.push('**Error:**');
+      lines.push('**Error message**');
       lines.push('```');
-      lines.push(primaryMessage);
+      lines.push(tc.errorMessage || tc.errorBody || 'No error message');
       lines.push('```');
 
       if (tc.errorBody && tc.errorBody !== tc.errorMessage && tc.errorBody.length > 0) {
         lines.push('');
-        lines.push('<details><summary>Full stack trace</summary>');
+        lines.push('<details>');
+        lines.push('<summary>Stack trace</summary>');
         lines.push('');
         lines.push('```');
         lines.push(tc.errorBody);
@@ -229,15 +218,17 @@ function generateFailedSection(suites) {
       if (screenshot) {
         const relPath = path.relative(projectRoot, screenshot);
         lines.push('');
-        lines.push(`**Screenshot:** [\`${relPath}\`](./${relPath})`);
+        lines.push(`**Screenshot:** [\`${path.basename(relPath)}\`](./${relPath})`);
       }
 
+      lines.push('');
+      lines.push('---');
       lines.push('');
     }
   }
 
   if (failedCount === 0) {
-    lines.push('All tests passed! 🎉');
+    lines.push('> No failures recorded.');
     lines.push('');
   }
 
@@ -248,16 +239,22 @@ function generateAllTestsSection(suites) {
   const lines = [];
 
   for (const suite of suites) {
-    lines.push(`### \`${suite.file}\``);
-    if (suite.timestamp) lines.push(`> Run at: ${suite.timestamp}${suite.hostname ? ` on \`${suite.hostname}\`` : ''}`);
+    lines.push(`### ${suite.name}`);
     lines.push('');
-    lines.push('| Test | Status | Duration |');
-    lines.push('|------|--------|------:|');
-
-    for (const tc of suite.testCases) {
-      const icon = statusIcon(tc.status);
-      lines.push(`| ${escapeMd(tc.name)} | ${icon} \`${tc.status}\` | ${formatDuration(tc.time)} |`);
+    if (suite.timestamp) {
+      lines.push(`> **Run at:** ${suite.timestamp}${suite.hostname ? ` on \`${suite.hostname}\`` : ''}`);
+      lines.push('');
     }
+    lines.push('| # | Test | Result | Duration |');
+    lines.push('|---|------|--------|--------:|');
+
+    suite.testCases.forEach((tc, i) => {
+      const result = tc.status === 'passed' ? '✅ pass'
+                   : tc.status === 'failed' ? '❌ fail'
+                   : tc.status === 'skipped' ? '⏭️ skip'
+                   : '⚠️ error';
+      lines.push(`| ${i + 1} | ${escapeMd(tc.name)} | ${result} | ${formatDuration(tc.time)} |`);
+    });
 
     lines.push('');
   }
@@ -269,39 +266,52 @@ function generateMarkdown(suites, meta = {}) {
   const now     = new Date();
   const dateStr = now.toISOString().replace('T', ' ').split('.')[0] + ' UTC';
 
-  const totalFailed = suites.reduce((n, s) => n + s.failed, 0);
-  const overallStatus = totalFailed > 0
-    ? `🔴 **FAILED** — ${totalFailed} test(s) failing`
-    : '🟢 **PASSED** — all tests green';
+  const totalPassed  = suites.reduce((n, s) => n + s.passed,  0);
+  const totalFailed  = suites.reduce((n, s) => n + s.failed,  0);
+  const totalSkipped = suites.reduce((n, s) => n + s.skipped, 0);
+  const totalAll     = suites.reduce((n, s) => n + s.total,   0);
+  const totalTime    = suites.reduce((n, s) => n + s.time,    0);
+
+  const overallResult = totalFailed > 0 ? 'FAILED' : 'PASSED';
+  const badge = totalFailed > 0
+    ? `![FAILED](https://img.shields.io/badge/Result-FAILED-red)`
+    : `![PASSED](https://img.shields.io/badge/Result-PASSED-brightgreen)`;
 
   const parts = [
-    `# Mobile Automation Test Report`,
+    `# Test Report`,
     '',
-    `> ${overallStatus}`,
+    badge,
     '',
-    `| | |`,
-    `|---|---|`,
-    `| **Generated** | ${dateStr} |`,
-    meta.sourceFiles ? `| **Source files** | ${meta.sourceFiles} |` : null,
+    '## Run details',
     '',
-    `---`,
+    `| Field | Value |`,
+    `|-------|-------|`,
+    `| Generated | ${dateStr} |`,
+    `| Result | **${overallResult}** |`,
+    `| Total tests | ${totalAll} |`,
+    `| Passed | ${totalPassed} |`,
+    `| Failed | ${totalFailed} |`,
+    `| Skipped | ${totalSkipped} |`,
+    `| Duration | ${formatDuration(totalTime)} |`,
+    meta.sourceFiles ? `| Suites run | ${meta.sourceFiles} |` : null,
     '',
-    `## Summary`,
+    '---',
+    '',
+    '## Summary',
     '',
     generateSummaryTable(suites),
     '',
-    `---`,
+    '---',
     '',
     `## Failed tests`,
     '',
     generateFailedSection(suites),
-    `---`,
-    '',
-    `## All tests`,
+    '## All tests',
     '',
     generateAllTestsSection(suites),
-    `---`,
-    `*Generated by \`mobile-automation/config/generate-md-report.js\`*`,
+    '---',
+    '',
+    `*Generated by [generate-md-report.js](./generate-md-report.js)*`,
   ].filter(line => line !== null);
 
   return parts.join('\n');
@@ -314,7 +324,6 @@ function generateMarkdown(suites, meta = {}) {
 function main() {
   if (!fs.existsSync(resultsDir)) {
     console.error(`❌ JUnit results directory not found: ${resultsDir}`);
-    console.error('   Run tests first: cd config && npm run wdio');
     process.exit(1);
   }
 
@@ -343,9 +352,10 @@ function main() {
 
   const md = generateMarkdown(allSuites, { sourceFiles: junitFiles.length });
 
-  const ts         = now => now.toTimeString().split(' ')[0].replace(/:/g, '-');
-  const dateStr    = new Date().toISOString().split('T')[0];
-  const reportFile = path.join(reportDir, `Test-Report-${dateStr}-${ts(new Date())}.md`);
+  const now        = new Date();
+  const dateStr    = now.toISOString().split('T')[0];
+  const timeStr    = now.toTimeString().split(' ')[0].replace(/:/g, '-');
+  const reportFile = path.join(reportDir, `Test-Report-${dateStr}-${timeStr}.md`);
 
   fs.writeFileSync(reportFile, md, 'utf-8');
   console.log(`✅ Report written: ${reportFile}`);
