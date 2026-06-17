@@ -5,8 +5,8 @@ set -euo pipefail
 cd "$(dirname "$0")/../mobile-automation/config"
 
 # Set screen size and density for CI emulator
-adb shell wm size 1080x1920
-adb shell wm density 240
+adb shell wm size 1080x2160
+adb shell wm density 440
 sleep 2
 
 SCOPE="${SCOPE:-all}"
