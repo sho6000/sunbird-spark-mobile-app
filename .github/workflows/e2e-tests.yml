@@ -114,14 +114,28 @@ jobs:
 
       - name: Generate MD report
         if: always()
+        continue-on-error: true
         working-directory: ./mobile-automation/config
         run: npm run report
 
-      - name: Upload test artifacts
+      - name: Publish report to run summary
+        if: always()
+        working-directory: ./mobile-automation/config
+        run: |
+          REPORT=$(ls -t ../reports/md-report/*.md 2>/dev/null | head -1)
+          if [ -n "$REPORT" ]; then
+            echo "## 📋 Test Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            cat "$REPORT" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No report found" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload report artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results-${{ github.run_id }}
+          name: Test-Report-${{ github.run_id }}
           path: |
-            mobile-automation/reports/
+            mobile-automation/reports/md-report/*.md
           retention-days: 14
