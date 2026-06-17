@@ -4,7 +4,7 @@ describe('Suite 0: Dismiss Onboarding', () => {
 
     // run screenshot
     it('should capture screenshot before home screen', async () => {
-        const screenshot = await browser.takeScreenshot();
+        await browser.saveScreenshot('../reports/android/test-results/suite0-before-home.png');
         // Save or log the screenshot as needed
         console.log('📸 Screenshot captured')
         });
@@ -16,7 +16,7 @@ describe('Suite 0: Dismiss Onboarding', () => {
 
     // run screenshot
     it('should capture screenshot after home screen', async () => {
-        const screenshot = await browser.takeScreenshot();
+        await browser.saveScreenshot('../reports/android/test-results/suite0-after-home.png');
         // Save or log the screenshot as needed
         console.log('📸 Screenshot captured')
         });
