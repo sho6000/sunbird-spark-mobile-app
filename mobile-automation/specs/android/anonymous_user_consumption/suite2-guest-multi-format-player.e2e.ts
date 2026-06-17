@@ -220,7 +220,7 @@ async function findVideoCard(browser: WebdriverIO.Browser): Promise<string> {
 
 // PDF CONTENT
 
-describe('E2E Suite 2: Multi-Format Content Consumption — PDF (TC_02)', () => {
+describe('E2E Suite 2: Multi-Format Content Consumption', () => {
   before(async () => {
     await ensureAnonymous(browser);
   });

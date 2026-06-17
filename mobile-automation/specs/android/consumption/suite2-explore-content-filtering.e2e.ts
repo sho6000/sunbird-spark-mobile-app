@@ -25,7 +25,7 @@ async function getContentCardTexts(browser: WebdriverIO.Browser): Promise<string
     return cardTexts;
 }
 
-describe('Explore Page - Content Type Filter Tests (Suite 2)', () => {
+describe('Explore Page - Content Type Filter Tests', () => {
     it('should filter content by each content type individually and verify results', async () => {
         if (!testCredentials.email || !testCredentials.password || !testCredentials.username) {
             throw new Error('Missing credentials in .env file. Required: SUNBIRD_EMAIL, SUNBIRD_PASSWORD, SUNBIRD_USERNAME');

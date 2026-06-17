@@ -1,7 +1,7 @@
 
 import { verifyAnonymous, assertNoLoginPrompt, ensureAnonymous } from '../../../fixtures/verify-anonymous.fixture';
 
-describe('E2E Suite 3: Content Details Page — Discovery to Consumption (TC_09, TC_07, TC_08)', () => {
+describe('E2E Suite 3: Content Details Page — Discovery to Consumption', () => {
   before(async () => {
       await ensureAnonymous(browser);
   });

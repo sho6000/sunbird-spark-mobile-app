@@ -65,18 +65,6 @@ describe('E2E Suite 8: Profile Data & Consent Dialog Contents', () => {
     await dialog.waitForDisplayed({ timeout: 5000 });
     console.log('  ✅ Consent dialog opened');
 
-    // const userIDRow = await browser.$('//android.view.View[contains(@text, "User ID")]');
-    // expect(await userIDRow.isExisting()).toBe(true);
-    // console.log('  ✅ User ID row present');
-
-    // const mobileRow = await browser.$('//android.view.View[contains(@text, "Mobile Number")]');
-    // expect(await mobileRow.isExisting()).toBe(true);
-    // console.log('  ✅ Mobile Number row present');
-
-    // const emailRow = await browser.$('//android.view.View[contains(@text, "Email ID")]');
-    // expect(await emailRow.isExisting()).toBe(true);
-    // console.log('  ✅ Email ID row present');
-
     const infoText = await browser.$('//android.widget.TextView[@text="You can edit these details from your profile."]');
     expect(await infoText.isExisting()).toBe(true);
     console.log('  ✅ Info text present');
