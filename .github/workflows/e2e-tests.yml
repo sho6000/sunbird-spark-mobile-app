@@ -105,7 +105,7 @@ jobs:
           target: google_apis_playstore   # ← was google_apis
           arch: x86_64
           avd-name: Pixel_3_API_35
-          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-load
+          emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-load -prop qemu.sf.lcd_density=440 -skin 1080x2160
           disable-animations: true
           boot-timeout: 600
           cores: 2
