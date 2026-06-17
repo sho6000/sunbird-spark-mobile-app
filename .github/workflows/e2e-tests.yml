@@ -13,7 +13,7 @@ on:
           - 'anonymous'
           - 'consumption'
       spec:
-        description: 'For custom: file path relative to mobile-automation/ (e.g. specs/android/consumption/suite1-home-in-progress-courses.e2e.ts)'
+        description: 'Single suite shortcut (e.g. consumption/suite4, anonymous/suite0) or full path'
         required: false
         type: string
 
@@ -102,7 +102,7 @@ jobs:
           SPEC: ${{ inputs.spec }}
         with:
           api-level: 35
-          target: google_apis_playstore   # ← was google_apis
+          target: google_apis_playstore
           arch: x86_64
           avd-name: Pixel_3_API_35
           emulator-options: -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot-load -prop qemu.sf.lcd_density=440 -skin 1080x2160
