@@ -1,4 +1,4 @@
 node_modules/
 .env
-# app/android/*.apk
+app/android/*.apk
 reports/
