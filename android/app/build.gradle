@@ -7,8 +7,8 @@ android {
         applicationId "org.sunbird.spark.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.0"
+        versionCode 3
+        versionName "1.0.3"
         def BASE_URL = project.findProperty("base_url") ?: ""
         def MOBILE_APP_CONSUMER = project.findProperty("mobile_app_consumer") ?: ""
         def MOBILE_APP_KEY = project.findProperty("mobile_app_key") ?: ""
@@ -31,6 +31,8 @@ android {
         }
     }
     signingConfigs {
+        debug {
+        }
         release {
         }
     }
@@ -62,6 +64,7 @@ dependencies {
 
 apply from: 'capacitor.build.gradle'
 apply from: '../signing.gradle'
+apply from: '../debug-signing.gradle'
 
 try {
     def servicesJSON = file('google-services.json')

@@ -3,3 +3,31 @@ include ':capacitor-cordova-android-plugins'
 project(':capacitor-cordova-android-plugins').projectDir = new File('./capacitor-cordova-android-plugins/')
 
 apply from: 'capacitor.settings.gradle'
+
+// Security pins for the generated :capacitor-cordova-android-plugins module's
+// own buildscript classpath (it pulls AGP transitives independently of root).
+// Applied here via gradle.beforeProject so the force is registered BEFORE that
+// subproject's buildscript classpath is resolved. Keep versions in sync with
+// buildClasspathPins in android/build.gradle.
+def nettyV = providers.gradleProperty('nettyVersion').getOrElse('4.1.133.Final')
+def cordovaBuildscriptPins = [
+    'org.bouncycastle:bcprov-jdk18on:1.84',
+    'org.bouncycastle:bcpkix-jdk18on:1.84',
+    'org.bouncycastle:bcutil-jdk18on:1.84',
+    'org.jdom:jdom2:2.0.6.1',
+    'org.bitbucket.b_c:jose4j:0.9.6',
+    'org.apache.commons:commons-compress:1.27.1',
+    'org.apache.commons:commons-lang3:3.18.0',
+] + [
+    'netty-common','netty-buffer','netty-transport','netty-transport-native-unix-common',
+    'netty-resolver','netty-codec','netty-codec-http','netty-codec-http2',
+    'netty-codec-socks','netty-handler','netty-handler-proxy',
+].collect { "io.netty:${it}:${nettyV}" }
+
+gradle.beforeProject { proj ->
+    if (proj != proj.rootProject) {
+        proj.buildscript.configurations.classpath.resolutionStrategy {
+            cordovaBuildscriptPins.each { force it }
+        }
+    }
+}
