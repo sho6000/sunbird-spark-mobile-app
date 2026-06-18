@@ -12,19 +12,30 @@ End-to-end test suite for Android mobile apps using WebdriverIO + Appium. Design
 
 ### Option 1 — GitHub Actions (CI)
 
-1. Fork the repo
+```bash
+# 1. Fork the repo on GitHub
 
-2. Add APK: 
-```bash 
-git add -f mobile-automation/app/android/app-debug.apk && git commit -m "add APK" && git push
+# 2. Clone your fork and run:
+mkdir -p .github/workflows
+cp mobile-automation/.github/workflows/e2e-tests.yml .github/workflows/
+git add .github/workflows/e2e-tests.yml
+git commit -m "add E2E test workflow"
+git push
+
+# 3. Add your APK
+git add -f mobile-automation/app/android/app-debug.apk
+git commit -m "add APK"
+git push
 ```
-3. Add 3 secrets: 
- `SUNBIRD_EMAIL`, `SUNBIRD_PASSWORD`, `SUNBIRD_USERNAME` in
- `Settings → Secrets → Actions`
 
-4. Go to **Actions** → "Mobile E2E Tests" → **"Run workflow"**
+**4.** Add 3 secrets in `Settings → Secrets and variables → Actions`:
+- `SUNBIRD_EMAIL`
+- `SUNBIRD_PASSWORD`
+- `SUNBIRD_USERNAME`
 
-Pick scope: `all`, `anonymous`, or `consumption`. Download results from **Artifacts** when done.
+**5.** Go to **Actions** → **"Automation E2E Tests"** → **"Run workflow"**
+
+Pick scope (`all` / `anonymous` / `consumption`) or enter a shortcut (e.g. `consumption/suite4`). Results render inline on the run summary page.
 
 ### Option 2 — Locally
 
