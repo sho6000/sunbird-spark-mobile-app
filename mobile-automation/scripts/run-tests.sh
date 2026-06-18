@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Navigate to wdio config dir relative to this script's location
-cd "$(dirname "$0")/../mobile-automation/config"
+cd "$(dirname "$0")/../config"
 
 SCOPE="${SCOPE:-all}"
 SPEC="${SPEC:-}"

@@ -110,7 +110,7 @@ jobs:
           boot-timeout: 600
           cores: 2
           ram-size: 4096
-          script: bash scripts/run-tests.sh
+          script: bash mobile-automation/scripts/run-tests.sh
 
       - name: Generate MD report
         if: always()
