@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import ContentPlayerPage from './ContentPlayerPage';
 
@@ -60,7 +60,15 @@ vi.mock('../providers/NetworkProvider', () => ({
 }));
 
 vi.mock('../components/players/ContentPlayer', () => ({
-  ContentPlayer: () => <div data-testid="content-player" />,
+  // Exposes a button so tests can simulate the player's first event,
+  // which clears the boot overlay.
+  ContentPlayer: ({ onPlayerEvent }: any) => (
+    <div data-testid="content-player">
+      <button data-testid="fire-player-event" onClick={() => onPlayerEvent?.({ eid: 'RENDERED' })}>
+        evt
+      </button>
+    </div>
+  ),
 }));
 
 vi.mock('../components/common/DownloadProgressBadge', () => ({
@@ -104,6 +112,17 @@ vi.mock('../services/download_manager', () => ({
     retry: vi.fn(),
     pause: vi.fn(),
     resume: vi.fn(),
+  },
+  DownloadState: {
+    QUEUED: 'QUEUED',
+    DOWNLOADING: 'DOWNLOADING',
+    PAUSED: 'PAUSED',
+    DOWNLOADED: 'DOWNLOADED',
+    IMPORTING: 'IMPORTING',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+    CANCELLED: 'CANCELLED',
+    RETRY_WAIT: 'RETRY_WAIT',
   },
 }));
 
@@ -267,5 +286,60 @@ describe('ContentPlayerPage — accessibility', () => {
     });
     render(<ContentPlayerPage />);
     expect(screen.getByTestId('ion-page')).toBeInTheDocument();
+  });
+});
+
+describe('ContentPlayerPage — player loading states', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (useNetwork as any).mockReturnValue({ isOffline: false });
+    (useContentRead as any).mockReturnValue({
+      data: {
+        data: {
+          content: {
+            name: 'Test Content',
+            appIcon: '',
+            mimeType: 'application/pdf',
+            identifier: 'do_test_123',
+            contentType: 'Resource',
+          },
+        },
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+      fetchStatus: 'idle',
+    });
+    (useQumlContent as any).mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
+    (useContentSearch as any).mockReturnValue({ data: null, isLoading: false });
+    (useDownloadState as any).mockReturnValue(null);
+    (useIsContentLocal as any).mockReturnValue({ isLocal: false, isCheckPending: false });
+  });
+
+  it('shows the download progress loader when playing content that is still downloading', () => {
+    (useDownloadState as any).mockReturnValue({ state: 'DOWNLOADING', progress: 42 });
+    render(<ContentPlayerPage />);
+
+    // Tap play before the download has finished.
+    fireEvent.click(screen.getByRole('button', { name: 'playItem' }));
+
+    // Progress loader is shown instead of the (not-yet-ready) player.
+    expect(screen.getByText('download.downloading')).toBeInTheDocument();
+    expect(screen.queryByTestId('content-player')).not.toBeInTheDocument();
+  });
+
+  it('shows the boot overlay until the player emits its first event, then clears it', () => {
+    render(<ContentPlayerPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'playItem' }));
+
+    // Overlay loader covers the player while it boots.
+    expect(screen.getByText('loading')).toBeInTheDocument();
+    expect(screen.getByTestId('content-player')).toBeInTheDocument();
+
+    // The player's first event clears the overlay.
+    fireEvent.click(screen.getByTestId('fire-player-event'));
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+    expect(screen.getByTestId('content-player')).toBeInTheDocument();
   });
 });

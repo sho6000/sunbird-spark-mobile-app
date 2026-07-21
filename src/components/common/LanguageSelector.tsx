@@ -25,6 +25,9 @@ export const LanguageSelector: React.FC = () => {
     const handleLanguageChange = (lang: typeof LANGUAGE_CONFIG[0]) => {
         i18n.changeLanguage(lang.code);
         localStorage.setItem('appLanguage', lang.code);
+        // The QuML player web component reads its UI language from the
+        // 'app-language' localStorage key, so mirror the selection there.
+        localStorage.setItem('app-language', lang.code);
         setIsOpen(false);
     };
 

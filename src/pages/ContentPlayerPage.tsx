@@ -29,7 +29,7 @@ import { NON_DOWNLOADABLE_MIME_TYPES } from '../services/content/hierarchyUtils'
 import { resolveContentForPlayer } from '../services/content/contentPlaybackResolver';
 import { contentDbService } from '../services/db/ContentDbService';
 import { mapSearchContentToRelatedContentItems } from '../services/relatedContentMapper';
-import { downloadManager } from '../services/download_manager';
+import { downloadManager, DownloadState } from '../services/download_manager';
 import { BackIcon } from '../components/icons/CollectionIcons';
 import PageLoader from '../components/common/PageLoader';
 import { telemetryService } from '../services/TelemetryService';
@@ -54,6 +54,10 @@ const ContentPlayerPage: React.FC = () => {
 
   const { isOffline } = useNetwork();
   const [isPlaying, setIsPlaying] = useState(false);
+  // False from the moment "play" is tapped until the embedded player paints its
+  // first frame (signalled by its first player/telemetry event). Drives an opaque
+  // loading overlay so there's no blank/black flash while the player boots.
+  const [playerReady, setPlayerReady] = useState(false);
 
   type ToastConfig = { message: string; color: 'success' | 'danger' | 'warning' | 'primary' | 'dark'; icon?: string };
   const [toastConfig, setToastConfig] = useState<ToastConfig | null>(null);
@@ -61,8 +65,23 @@ const ContentPlayerPage: React.FC = () => {
 
   const { data, isLoading, error, refetch, fetchStatus } = useContentRead(contentId);
   const contentData = data?.data?.content;
-  const isQumlContent = QUML_MIME_TYPES.includes(contentData?.mimeType);
-  const isNonDownloadable = !!(contentData?.mimeType && NON_DOWNLOADABLE_MIME_TYPES.includes(contentData.mimeType));
+
+  // Offline, the content-read API is paused so contentData is undefined. Read the
+  // mime type from the local DB so QuML detection still works for downloaded content.
+  const [localMimeType, setLocalMimeType] = useState<string | undefined>();
+  useEffect(() => {
+    if (!contentId) return;
+    let cancelled = false;
+    contentDbService
+      .getByIdentifier(contentId)
+      .then((entry) => { if (!cancelled) setLocalMimeType(entry?.mime_type || undefined); })
+      .catch(() => { });
+    return () => { cancelled = true; };
+  }, [contentId]);
+
+  const effectiveMimeType = contentData?.mimeType ?? localMimeType;
+  const isQumlContent = QUML_MIME_TYPES.includes(effectiveMimeType as string);
+  const isNonDownloadable = !!(effectiveMimeType && NON_DOWNLOADABLE_MIME_TYPES.includes(effectiveMimeType));
 
   const {
     data: qumlData,
@@ -84,6 +103,21 @@ const ContentPlayerPage: React.FC = () => {
 
   const isLocal = deletedLocal ? false : rawIsLocal;
   const downloadState = deletedLocal ? null : rawDownloadState;
+
+  // True while a download/import is actively running for this content. Used to
+  // show a progress loader instead of a blank player when the user opens/plays
+  // content that hasn't finished downloading yet.
+  const isDownloadInProgress = !!downloadState && (
+    downloadState.state === DownloadState.QUEUED ||
+    downloadState.state === DownloadState.DOWNLOADING ||
+    downloadState.state === DownloadState.DOWNLOADED ||
+    downloadState.state === DownloadState.IMPORTING
+  );
+  const downloadingMessage = downloadState?.state === DownloadState.DOWNLOADING
+    ? t('download.downloading', 'Downloading {{pct}}%', { pct: Math.round(downloadState.progress) })
+    : downloadState?.state === DownloadState.QUEUED
+      ? t('download.queued', 'Queued')
+      : t('download.processing', 'Processing…');
 
   // API is unavailable when it errored, paused (offline), or completed with no data
   const isApiUnavailable = !!error || fetchStatus === 'paused'
@@ -127,7 +161,10 @@ const ContentPlayerPage: React.FC = () => {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [contentId]);
   useEffect(() => {
-    if (!rawPlayerMetadata?.identifier || !isLocal) {
+    // QuML resolves its own media to local URLs inside loadLocalQumlContent, so
+    // it must NOT go through resolveContentForPlayer (which sets isAvailableLocally
+    // and would push the player onto a different image-resolution branch).
+    if (!rawPlayerMetadata?.identifier || !isLocal || isQumlContent) {
       return;
     }
     let cancelled = false;
@@ -135,13 +172,13 @@ const ContentPlayerPage: React.FC = () => {
       if (!cancelled) setResolvedMetadata({ id: rawPlayerMetadata.identifier, data: resolved });
     });
     return () => { cancelled = true; };
-  }, [rawPlayerMetadata, isLocal]);
+  }, [rawPlayerMetadata, isLocal, isQumlContent]);
 
   const playerMetadata = (isLocal && resolvedMetadata != null && resolvedMetadata.id === rawPlayerMetadata?.identifier) ? resolvedMetadata.data : rawPlayerMetadata;
 
   // Loading guards for offline fallback pipeline
   const isLocalFallbackPending = isLocal && isApiUnavailable && !contentData && !localFallbackMeta;
-  const isResolving = isLocal && (resolvedMetadata == null || resolvedMetadata.id !== rawPlayerMetadata?.identifier) && !!rawPlayerMetadata?.identifier;
+  const isResolving = !isQumlContent && isLocal && (resolvedMetadata == null || resolvedMetadata.id !== rawPlayerMetadata?.identifier) && !!rawPlayerMetadata?.identifier;
 
   // Related content
   const contentLoaded = !isLoading && !!contentData;
@@ -168,13 +205,16 @@ const ContentPlayerPage: React.FC = () => {
         const entry = await downloadManager.getEntry(contentId);
         if (entry?.state === 'COMPLETED') {
           setToastConfig({ message: t('download.downloadSuccess', 'Content downloaded successfully'), color: 'success', icon: checkmarkCircle });
+          // Re-fetch so the player swaps from the in-progress loader to the
+          // now-downloaded content (QuML rebuilds its metadata from local files).
+          handleRetry();
         } else if (entry?.state === 'FAILED') {
           setToastConfig({ message: t('download.downloadFailed', 'Failed to download content.'), color: 'danger', icon: alertCircleOutline });
         }
       }
     });
     return unsub;
-  }, [contentId, t]);
+  }, [contentId, t, handleRetry]);
 
   const handleDownload = useCallback(async () => {
     setDeletedContentId(null);
@@ -240,9 +280,18 @@ const ContentPlayerPage: React.FC = () => {
   }, [contentId]);
 
   const handlePlay = useCallback(() => {
+    setPlayerReady(false);
     setIsPlaying(true);
     ScreenOrientation.lock({ orientation: 'landscape' }).catch(() => { });
   }, []);
+
+  // Safety net: if the player never emits an event, drop the overlay anyway so
+  // it can't get stuck covering a working player.
+  useEffect(() => {
+    if (!isPlaying || playerReady) return;
+    const id = setTimeout(() => setPlayerReady(true), 6000);
+    return () => clearTimeout(id);
+  }, [isPlaying, playerReady]);
 
   const handleClosePlayer = useCallback(() => {
     setIsPlaying(false);
@@ -260,6 +309,7 @@ const ContentPlayerPage: React.FC = () => {
 
   const handlePlayerEvent = (event: any) => {
     console.debug('[ContentPlayerPage] Player event:', event);
+    setPlayerReady(true); // first event ⇒ player has rendered; hide the overlay
     // Check all possible event shapes across player types:
     // - event.data.edata.type: raw web component event structure (pdf, epub, quml, video, ecml)
     // - event.type / event.data.type: wrapped event from player services
@@ -278,12 +328,28 @@ const ContentPlayerPage: React.FC = () => {
 
   const handleTelemetryEvent = (event: any) => {
     console.debug('[ContentPlayerPage] Telemetry event:', event);
+    setPlayerReady(true); // first event ⇒ player has rendered; hide the overlay
     void telemetryService.save(event);
   };
 
   const telemetryObject = contentData
     ? { id: contentId, type: contentData.contentType || 'Content', ver: String(contentData.pkgVersion || '1') }
     : undefined;
+
+  // ── Downloading: show a progress loader instead of a blank player ──
+  // When the user plays content that's still downloading (common for QuML, which
+  // must read its questions/media from disk), the player metadata isn't ready yet.
+  // Show download progress until it finishes, then handleRetry() (on COMPLETED)
+  // re-fetches and the player renders.
+  if (isPlaying && isDownloadInProgress && !isLocal) {
+    return (
+      <IonPage className="cp-fullscreen">
+        <IonContent scrollY={false}>
+          <PageLoader message={downloadingMessage} />
+        </IonContent>
+      </IonPage>
+    );
+  }
 
   // ── Fullscreen player mode (landscape, no header) ──
   if (isPlaying && playerMetadata && mimeType) {
@@ -331,6 +397,11 @@ const ContentPlayerPage: React.FC = () => {
       <IonPage className="cp-fullscreen">
         <IonContent scrollY={false}>
           <div className="cp-player-fullscreen-container">
+            {!playerReady && (
+              <div className="cp-player-loading-overlay">
+                <PageLoader message={t('loading')} />
+              </div>
+            )}
             <ContentPlayer
               mimeType={mimeType}
               metadata={playerMetadata}

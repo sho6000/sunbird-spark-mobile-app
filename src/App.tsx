@@ -7,6 +7,9 @@ import { appUpdateService } from './services/AppUpdateService';
 import useInteract from './hooks/useInteract';
 import { useTranslation } from 'react-i18next';
 import { routeNotification } from './services/push/notificationRouter';
+import { PushNotifications } from '@capacitor/push-notifications';
+import { Capacitor } from '@capacitor/core';
+import { useNotificationUpdate } from './hooks/useNotifications';
 import { useAuth } from './contexts/AuthContext';
 import { useUser } from './hooks/useUser';
 import { AppInitializer } from './AppInitializer';
@@ -168,30 +171,72 @@ const OnboardingGuard: React.FC = () => {
 
 /**
  * Listens for push notification events dispatched by PushNotificationService.
- * - push:foreground → invalidates notification feed cache (updates unread badge)
- * - push:tapped     → routes to the correct screen based on actionType
+ * - push:received  → emits receive telemetry + invalidates notification feed cache
+ * - push:tapped    → routes to the correct screen, marks the row read on the
+ *                    backend, clears the OS tray, and emits tap telemetry
+ * - push:update-app → opens the app store
  */
 const PushNotificationGuard: React.FC = () => {
   const router = useIonRouter();
   const queryClient = useQueryClient();
   const { interact } = useInteract();
+  const { userId } = useAuth();
+  const { mutateAsync: updateNotification } = useNotificationUpdate();
+
+  // Refs let us reference the latest values inside the effect's stable listeners
+  // without re-subscribing every render.
   const interactRef = useRef(interact);
+  const userIdRef = useRef(userId);
+  const updateRef = useRef(updateNotification);
   useLayoutEffect(() => {
     interactRef.current = interact;
+    userIdRef.current = userId;
+    updateRef.current = updateNotification;
   });
 
   useEffect(() => {
-    const handleForeground = () => {
+    const handleReceived = (e: Event) => {
+      const data = (e as CustomEvent<Record<string, any>>).detail ?? {};
+      const notificationId: string | undefined = data?.id ?? data?.notificationId;
+      interactRef.current({
+        id: 'push-notification-received',
+        type: 'FCM',
+        pageid: 'Notification',
+        ...(notificationId && { cdata: [{ id: String(notificationId), type: 'NotificationId' }] }),
+      });
       queryClient.invalidateQueries({ queryKey: ['notificationFeed'] });
     };
 
     const handleTap = (e: Event) => {
-      const data = (e as CustomEvent<Record<string, any>>).detail;
+      const data = (e as CustomEvent<Record<string, any>>).detail ?? {};
+      const notificationId: string | undefined = data?.id ?? data?.notificationId;
+      const ownerUserId: string | undefined = data?.userId ?? userIdRef.current ?? undefined;
+
+      interactRef.current({
+        id: 'push-notification-tapped',
+        type: 'FCM',
+        subtype: 'notification-clicked',
+        pageid: 'Notification',
+        ...(notificationId && { cdata: [{ id: String(notificationId), type: 'NotificationId' }] }),
+      });
+
       routeNotification(
         data,
         (path) => router.push(path),
         (url) => window.open(url, '_system'),
       );
+
+      if (notificationId && ownerUserId) {
+        void updateRef.current({ ids: [String(notificationId)], userId: ownerUserId }).catch((err) => {
+          console.warn('[PushNotificationGuard] Failed to mark notification read', err);
+        });
+      }
+
+      if (Capacitor.isNativePlatform()) {
+        void PushNotifications.removeAllDeliveredNotifications().catch(() => {
+          /* tray clearing is best-effort */
+        });
+      }
     };
 
     const handleUpdateApp = () => {
@@ -199,12 +244,12 @@ const PushNotificationGuard: React.FC = () => {
       void appUpdateService.openAppStore();
     };
 
-    window.addEventListener('push:foreground', handleForeground);
+    window.addEventListener('push:received', handleReceived);
     window.addEventListener('push:tapped', handleTap);
     window.addEventListener('push:update-app', handleUpdateApp);
 
     return () => {
-      window.removeEventListener('push:foreground', handleForeground);
+      window.removeEventListener('push:received', handleReceived);
       window.removeEventListener('push:tapped', handleTap);
       window.removeEventListener('push:update-app', handleUpdateApp);
     };

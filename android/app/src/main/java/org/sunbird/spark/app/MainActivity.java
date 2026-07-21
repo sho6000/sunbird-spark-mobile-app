@@ -43,6 +43,22 @@ public class MainActivity extends BridgeActivity {
                     return super.shouldInterceptRequest(view, request);
                 }
 
+                // Skip range requests — the webview issues these only when it
+                // streams/seeks media (<video>/<audio>). A single-stream
+                // WebResourceResponse from a proxied HttpURLConnection can't serve
+                // range/seek, so proxied media never plays online (images work
+                // because they are one-shot, range-less fetches). Letting the
+                // webview load these directly restores playback; the assets are
+                // public + CORS-enabled + range-capable on the backend.
+                Map<String, String> reqHeaders = request.getRequestHeaders();
+                if (reqHeaders != null) {
+                    for (String header : reqHeaders.keySet()) {
+                        if (header != null && header.equalsIgnoreCase("Range")) {
+                            return super.shouldInterceptRequest(view, request);
+                        }
+                    }
+                }
+
                 String path = request.getUrl().getPath();
 
                 if (path != null) {

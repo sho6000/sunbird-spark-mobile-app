@@ -20,7 +20,8 @@ public class NativeSettingPlugin extends Plugin {
         "mobile_app_key",
         "mobile_app_secret",
         "producer_id",
-        "app_version"
+        "app_version",
+        "enable_ai_search"
     )));
 
     @PluginMethod

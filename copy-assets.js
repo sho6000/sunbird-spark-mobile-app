@@ -27,7 +27,7 @@ const players = [
   },
   {
     name: 'QuML Player',
-    package: '@project-sunbird/sunbird-quml-player-web-component',
+    package: '@project-sunbird/sunbird-quml-player-web-component-react',
     assetDir: 'quml-player',
   },
 ];
@@ -115,7 +115,7 @@ try {
 
   const qumlAssetsIconsDir = path.join(
     __dirname,
-    'node_modules/@project-sunbird/sunbird-quml-player-web-component/assets/quml-player/assets'
+    'node_modules/@project-sunbird/sunbird-quml-player-web-component-react/assets/quml-player/assets'
   );
   if (fs.existsSync(qumlAssetsIconsDir)) {
     const qumlIcons = fs.readdirSync(qumlAssetsIconsDir).filter((file) => file.endsWith('.svg'));

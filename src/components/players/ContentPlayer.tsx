@@ -19,6 +19,7 @@ const MIME_TYPE_PLAYERS = {
   'application/vnd.sunbird.questionset': QumlPlayer,
   'application/vnd.sunbird.question': QumlPlayer,
   'application/vnd.ekstep.html-archive': EcmlPlayer,
+  'application/vnd.ekstep.scorm-archive': EcmlPlayer,
 } as const;
 
 type SupportedMimeType = keyof typeof MIME_TYPE_PLAYERS;

@@ -4,11 +4,11 @@ const COLLECTION_MIME = 'application/vnd.ekstep.content-collection';
 
 // Mime types that cannot be downloaded for offline use
 // YouTube/external URLs: streaming-only, no offline playback
-// QuestionSets: rendered on-the-fly via QuML player, no downloadable artifact
+// NOTE: QuestionSets (QuML) ARE downloadable — the ecar carries the full
+// hierarchy + questions, which the QuML player replays from local storage.
 export const NON_DOWNLOADABLE_MIME_TYPES = [
   'video/x-youtube',
   'text/x-url',
-  'application/vnd.sunbird.questionset',
 ];
 
 /**
@@ -55,7 +55,6 @@ export function flattenLeafNodes(nodes: HierarchyContentNode[]): HierarchyConten
 const NON_DOWNLOADABLE_LABELS: Record<string, string> = {
   'video/x-youtube': 'YouTube',
   'text/x-url': 'External URL',
-  'application/vnd.sunbird.questionset': 'QuML',
 };
 
 /**

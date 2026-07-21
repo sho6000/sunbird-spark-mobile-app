@@ -84,7 +84,7 @@
     "@project-sunbird/content-player": "^8.0.0",
     "@project-sunbird/sunbird-epub-player-web-component": "^2.0.1",
     "@project-sunbird/sunbird-pdf-player-web-component": "^2.0.1",
-    "@project-sunbird/sunbird-quml-player-web-component": "^6.0.0",
+    "@project-sunbird/sunbird-quml-player-web-component-react": "^0.1.11",
     "@project-sunbird/sunbird-video-player-web-component": "^2.0.1",
     "@project-sunbird/telemetry-sdk": "^2.0.1",
     "@tanstack/react-query": "^5.90.20",
@@ -110,7 +110,6 @@
     "react-icons": "^5.6.0",
     "react-router": "^5.3.4",
     "react-router-dom": "^5.3.4",
-    "snyk": "^1.1301.2",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
@@ -146,6 +145,7 @@
     "prettier": "^3.7.4",
     "prettier-plugin-organize-imports": "^4.3.0",
     "prettier-plugin-tailwindcss": "^0.7.2",
+    "snyk": "^1.1305.0",
     "tailwindcss": "^4.1.18",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.3",

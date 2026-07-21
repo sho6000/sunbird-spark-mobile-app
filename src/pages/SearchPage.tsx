@@ -5,9 +5,15 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useContentSearch } from '../hooks/useContentSearch';
 import useDebounce from '../hooks/useDebounce';
-import { ContentSearchItem } from '../types/contentTypes';
+import { ContentSearchItem, SearchMode } from '../types/contentTypes';
 import CollectionCard from '../components/content/CollectionCard';
 import ResourceCard from '../components/content/ResourceCard';
+import { AiToggle } from '../components/common/AiToggle';
+import { useAiSearchEnabled } from '../hooks/useAiSearchEnabled';
+import { SemanticSuggestions } from '../components/common/SemanticSuggestions';
+import { SparkleIcon } from '../components/common/SparkleIcon';
+import { AppBackIcon } from '../components/common/AppBackIcon';
+import { useNetwork } from '../providers/NetworkProvider';
 import './SearchPage.css';
 import useImpression from '../hooks/useImpression';
 
@@ -44,9 +50,27 @@ const SearchPage: React.FC = () => {
         document.title = `${t('pageTitle.search')}`;
     }, [t]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [searchMode, setSearchMode] = useState<SearchMode>('keyword');
     const debouncedQuery = useDebounce(searchQuery.trim(), 600);
 
+    const { isOffline } = useNetwork();
+    const isSemantic = searchMode === 'semantic';
+    const showSuggestions = isSemantic && !debouncedQuery;
+
+    // AI search is gated by the native build config (gradle.properties → NativeSetting).
+    const aiSearchEnabled = useAiSearchEnabled();
+
+    // AI search needs connectivity; fall back to keyword if we go offline mid-session.
+    useEffect(() => {
+        if (isOffline && isSemantic) setSearchMode('keyword');
+    }, [isOffline, isSemantic]);
+
+    const handleToggleMode = () => {
+        setSearchMode((prev) => (prev === 'semantic' ? 'keyword' : 'semantic'));
+    };
+
     const { data, isLoading, error } = useContentSearch({
+        searchMode,
         request: debouncedQuery ? {
             query: debouncedQuery,
             limit: PREVIEW_LIMIT,
@@ -73,7 +97,8 @@ const SearchPage: React.FC = () => {
     };
 
     const handleViewAllResults = () => {
-        router.push(`/explore?query=${encodeURIComponent(debouncedQuery)}`, 'forward', 'push');
+        const modeParam = isSemantic ? '&mode=semantic' : '';
+        router.push(`/explore?query=${encodeURIComponent(debouncedQuery)}${modeParam}`, 'forward', 'push');
     };
 
     const renderResultCard = (item: ContentSearchItem) => {
@@ -86,15 +111,20 @@ const SearchPage: React.FC = () => {
     return (
         <IonPage>
             <IonHeader className="ion-no-border">
-                <IonToolbar style={{ '--background': 'var(--color-white)', '--padding-top': 'var(--safe-area-top)', padding: '12px 16px', boxShadow: 'none' }}>
+                <IonToolbar style={{ '--background': 'var(--color-white)', '--padding-top': 'var(--safe-area-top)', '--padding-end': '0', padding: '12px 16px', boxShadow: 'none' }}>
                     <div className="search-header">
-                        <div className="search-input-box">
-                            <SearchInputIcon />
+                        <button className="search-back-btn" onClick={handleCancel} aria-label={t('back')}>
+                            <AppBackIcon />
+                        </button>
+                        <div className={`search-input-box${isSemantic ? ' search-input-box--ai' : ''}`}>
+                            {isSemantic
+                                ? <SparkleIcon className="ai-blink" size={18} color="var(--ion-color-primary)" />
+                                : <SearchInputIcon />}
                             <IonInput
                                 type="text"
                                 className="search-text-input"
-                                placeholder={t('searchPlaceholder')}
-                                aria-label={t('searchPlaceholder')}
+                                placeholder={isSemantic ? t('aiPlaceholder') : t('searchPlaceholder')}
+                                aria-label={isSemantic ? t('aiPlaceholder') : t('searchPlaceholder')}
                                 value={searchQuery}
                                 onIonInput={(e) => setSearchQuery(e.detail.value || '')}
                                 // eslint-disable-next-line jsx-a11y/no-autofocus
@@ -105,10 +135,10 @@ const SearchPage: React.FC = () => {
                                     <ClearIcon />
                                 </button>
                             )}
+                            {aiSearchEnabled && (
+                                <AiToggle active={isSemantic} onToggle={handleToggleMode} disabled={isOffline} />
+                            )}
                         </div>
-                        <button className="search-cancel-btn" onClick={handleCancel}>
-                            {t('cancel')}
-                        </button>
                     </div>
                 </IonToolbar>
             </IonHeader>
@@ -116,8 +146,13 @@ const SearchPage: React.FC = () => {
             <IonContent fullscreen style={{ '--background': 'var(--ion-color-light)' }}>
                 <main id="main-content">
                 <div className="search-container">
+                    {/* AI search suggestions (semantic mode, empty query) */}
+                    {showSuggestions && (
+                        <SemanticSuggestions onPick={(q) => setSearchQuery(q)} offline={isOffline} />
+                    )}
+
                     {/* Loading State */}
-                    {isLoading && (
+                    {!showSuggestions && isLoading && (
                         <div className="search-loading" role="status" aria-live="polite">
                             <IonSpinner name="crescent" />
                             <span>{t('searching')}</span>
@@ -154,7 +189,7 @@ const SearchPage: React.FC = () => {
                     )}
 
                     {/* Default State */}
-                    {!debouncedQuery && !isLoading && (
+                    {!showSuggestions && !debouncedQuery && !isLoading && (
                         <div className="recommended-section">
                             <h2 className="recommended-title">{t('searchPageHint')}</h2>
                         </div>

@@ -15,6 +15,7 @@ const ecmlMimeTypes = [
   'application/vnd.ekstep.ecml-archive',
   'application/vnd.ekstep.h5p-archive',
   'application/vnd.ekstep.html-archive',
+  'application/vnd.ekstep.scorm-archive',
 ];
 
 /** Shape of each item inside the manifest archive */
@@ -242,21 +243,9 @@ export class ImportService {
       // EPUB → copy directly
       await this.copyAsset(itemSourcePath, destDir);
     } else if (ecmlMimeTypes.includes(mimeType)) {
-      // ECML/H5P/HTML archives: attempt normal unzip first.
-      // Older ECARs contain absolute entry paths (e.g. /assets/...) that capa-zip rejects.
-      // Fall back to our multi-threaded fflate worker to sanitize and extract.
-      try {
-        const destUri = (await Filesystem.getUri({ path: destDir, directory: Directory.Data })).uri;
-        await Zip.unzip({ sourceFile: itemSourcePath, destinationPath: destUri });
-      } catch (err) {
-        const msg = String((err as Error)?.message ?? err);
-        if (msg.toLowerCase().includes('invalid zip entry path') || msg.toLowerCase().includes('invalid zip')) {
-          console.warn('[ImportService] ECML artifact has absolute entry paths — extracting with worker:', msg);
-          await this.extractWithWorker(itemSourcePath, destDir);
-        } else {
-          throw err;
-        }
-      }
+      // ECML/H5P/HTML archives: attempt normal unzip first, falling back to the
+      // worker when older ECARs use absolute entry paths that capa-zip rejects.
+      await this.unzipArtifact(itemSourcePath, destDir);
     } else if (this.isRawMediaArtifact(mimeType, artifactUrl)) {
       // Video, audio, and PDF artifacts are stored as raw media files within the
       // outer ECAR zip. Java's ZipInputStream silently returns no entries when
@@ -264,11 +253,32 @@ export class ImportService {
       // extract nothing. Copy the file directly instead.
       await this.copyAsset(itemSourcePath, destDir);
     } else {
-      // Archive types (H5P, HTML) — unzip the inner artifact ZIP
-      const destUri = (await Filesystem.getUri({ path: destDir, directory: Directory.Data })).uri;
-      await Zip.unzip({ sourceFile: itemSourcePath, destinationPath: destUri });
+      // Any other archive artifact (e.g. QuML question zips containing index.json).
+      // QuML question artifacts use absolute entry paths (/index.json) that
+      // capa-zip rejects, so the worker fallback is required here too.
+      await this.unzipArtifact(itemSourcePath, destDir);
     }
     return 2; // ARTIFACT_AVAILABLE
+  }
+
+  /**
+   * Unzip an inner artifact archive, attempting the native capa-zip extractor
+   * first and falling back to the fflate worker when the archive uses absolute
+   * entry paths (e.g. /index.json, /assets/...) that capa-zip refuses.
+   */
+  private async unzipArtifact(itemSourcePath: string, destDir: string): Promise<void> {
+    try {
+      const destUri = (await Filesystem.getUri({ path: destDir, directory: Directory.Data })).uri;
+      await Zip.unzip({ sourceFile: itemSourcePath, destinationPath: destUri });
+    } catch (err) {
+      const msg = String((err as Error)?.message ?? err);
+      if (msg.toLowerCase().includes('invalid zip entry path') || msg.toLowerCase().includes('invalid zip')) {
+        console.warn('[ImportService] artifact has absolute entry paths — extracting with worker:', msg);
+        await this.extractWithWorker(itemSourcePath, destDir);
+      } else {
+        throw err;
+      }
+    }
   }
 
   /**
@@ -638,6 +648,7 @@ export class ImportService {
   private static readonly RENDERER_S3_FOLDERS: Record<string, string> = {
     'application/vnd.ekstep.h5p-archive': 'h5p',
     'application/vnd.ekstep.html-archive': 'html',
+    'application/vnd.ekstep.scorm-archive': 'scorm',
   };
 
   /**

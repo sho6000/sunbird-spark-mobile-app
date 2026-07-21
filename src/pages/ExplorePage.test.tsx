@@ -34,6 +34,12 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+// ── Mock NetworkProvider (controllable offline flag) ──
+let mockIsOffline = false;
+vi.mock('../providers/NetworkProvider', () => ({
+  useNetwork: () => ({ connected: !mockIsOffline, isOffline: mockIsOffline }),
+}));
+
 // ── Mock LanguageSelector ──
 vi.mock('../components/common/LanguageSelector', () => ({
   LanguageSelector: () => null,
@@ -44,10 +50,23 @@ vi.mock('../components/common/QRScanButton', () => ({
   QRScanButton: () => null,
 }));
 
+// ── Stub AppHeader (default-state header) ──
+vi.mock('../components/layout/AppHeader', () => ({
+  AppHeader: ({ title, showSearch, onSearch, actions }: any) => (
+    <div data-testid="ion-header">
+      {showSearch && <button aria-label="search" onClick={onSearch}>search</button>}
+      {title && <h1>{title}</h1>}
+      {actions}
+    </div>
+  ),
+}));
+
 // ── Mock react-router-dom ──
 let mockLocationSearch = '';
+const mockHistoryReplace = vi.fn();
 vi.mock('react-router-dom', () => ({
-  useLocation: () => ({ search: mockLocationSearch }),
+  useLocation: () => ({ search: mockLocationSearch, pathname: '/explore' }),
+  useHistory: () => ({ replace: mockHistoryReplace, push: vi.fn() }),
 }));
 
 // ── Mock Ionic components ──
@@ -172,8 +191,33 @@ describe('ExplorePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockLocationSearch = '';
+    mockIsOffline = false;
     (useContentSearch as any).mockReturnValue({ ...defaultSearchReturn });
     (useFormRead as any).mockReturnValue({ ...defaultFormReturn });
+  });
+
+  describe('AI search offline auto-revert', () => {
+    it('reverts semantic mode to keyword when offline', () => {
+      // Deep-link into AI mode, but the device is offline.
+      mockLocationSearch = '?mode=semantic';
+      mockIsOffline = true;
+
+      const { container } = render(<ExplorePage />);
+
+      // The offline effect should flip back to keyword → the bar loses its AI accent.
+      expect(container.querySelector('.explore-search-bar')).toBeTruthy();
+      expect(container.querySelector('.explore-search-bar--ai')).toBeNull();
+    });
+
+    it('stays in semantic mode when online', () => {
+      mockLocationSearch = '?mode=semantic';
+      mockIsOffline = false;
+
+      const { container } = render(<ExplorePage />);
+
+      // Online + semantic deep-link → bar keeps the AI accent class.
+      expect(container.querySelector('.explore-search-bar--ai')).toBeTruthy();
+    });
   });
 
   it('renders page structure', () => {

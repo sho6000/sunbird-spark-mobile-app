@@ -13,6 +13,7 @@ export type NativeConfig = {
   mobileAppSecret: string;
   producerId: string;
   appVersion: string;
+  enableAiSearch: boolean;
 };
 
 const EMPTY_CONFIG: NativeConfig = {
@@ -22,6 +23,7 @@ const EMPTY_CONFIG: NativeConfig = {
   mobileAppSecret: '',
   producerId: '',
   appVersion: '',
+  enableAiSearch: true,
 };
 
 class NativeConfigService {
@@ -42,7 +44,7 @@ class NativeConfigService {
     }
 
     try {
-      const [baseUrl, mobileAppConsumer, mobileAppKey, mobileAppSecret, producerId, appVersion] =
+      const [baseUrl, mobileAppConsumer, mobileAppKey, mobileAppSecret, producerId, appVersion, enableAiSearchRaw] =
         await Promise.all(
           [
             'base_url',
@@ -51,10 +53,11 @@ class NativeConfigService {
             'mobile_app_secret',
             'producer_id',
             'app_version',
+            'enable_ai_search',
           ].map((key) => NativeSetting.read({ key }).then((r) => r.value ?? '')),
         );
 
-      this.config = { baseUrl, mobileAppConsumer, mobileAppKey, mobileAppSecret, producerId, appVersion };
+      this.config = { baseUrl, mobileAppConsumer, mobileAppKey, mobileAppSecret, producerId, appVersion, enableAiSearch: enableAiSearchRaw.toLowerCase() !== 'false', };
       return this.config;
     } catch (error) {
       console.error('[NativeConfigService] Failed to load config:', error);

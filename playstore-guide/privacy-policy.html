@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy – Sunbird Spark</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f6f8;
+      --surface: #ffffff;
+      --accent: #2c3e6b;
+      --accent-light: #eef0f6;
+      --text: #111827;
+      --muted: #4b5563;
+      --border: #e2e4e9;
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.75;
+      padding: 2rem 1rem 4rem;
+    }
+
+    .wrapper {
+      max-width: 740px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      padding: 3rem 0 2.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+
+    h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: clamp(2rem, 5vw, 2.8rem);
+      font-weight: 400;
+      line-height: 1.2;
+      margin-bottom: 0.75rem;
+    }
+
+    .meta {
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+
+    .meta span {
+      display: inline-block;
+      background: var(--accent-light);
+      color: var(--accent);
+      padding: 0.25rem 0.75rem;
+      border-radius: 99px;
+      font-weight: 500;
+      margin-top: 0.5rem;
+    }
+
+    /* Sections */
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 2rem;
+      margin-bottom: 1.25rem;
+    }
+
+    h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.3rem;
+      font-weight: 400;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    h2 .num {
+      background: var(--accent);
+      color: white;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.75rem;
+      font-weight: 500;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    h3 {
+      font-size: 0.875rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--accent);
+      margin: 1.5rem 0 0.6rem;
+    }
+
+    h3:first-of-type { margin-top: 0; }
+
+    p { font-size: 0.95rem; color: var(--muted); margin-bottom: 0.5rem; }
+
+    ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    ul li {
+      font-size: 0.925rem;
+      color: var(--muted);
+      padding-left: 1.25rem;
+      position: relative;
+    }
+
+    ul li::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 0.6em;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      opacity: 0.5;
+    }
+
+    /* Permission cards */
+    .permission-group {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .permission-group:last-child { margin-bottom: 0; }
+
+    .permission-group h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.8rem;
+    }
+
+    .permission-group ul { gap: 0.35rem; }
+
+    /* Third-party links */
+    .third-party-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .third-party-item:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .third-party-item .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-top: 0.45em;
+      flex-shrink: 0;
+    }
+
+    .third-party-item strong {
+      display: block;
+      font-weight: 500;
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-bottom: 0.15rem;
+    }
+
+    .third-party-item a {
+      font-size: 0.8rem;
+      color: var(--accent);
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .third-party-item a:hover { text-decoration: underline; }
+
+    /* Highlight box */
+    .highlight {
+      background: var(--accent-light);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      padding: 1rem 1.25rem;
+      margin-top: 0.75rem;
+    }
+
+    .highlight p { color: var(--text); margin: 0; font-size: 0.9rem; }
+
+    /* Contact */
+    .contact-box {
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .contact-box p { margin-bottom: 1rem; }
+
+    .contact-email {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 0.6rem 1.5rem;
+      border-radius: 99px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      text-decoration: none;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 2.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <header>
+      <h1>Privacy Policy</h1>
+      <p class="meta">
+        App Name: Sunbird Spark Mobile App<br/>
+        <span>Effective Date: enter-date</span>
+      </p>
+    </header>
+
+    <p style="color: var(--muted); font-size:0.95rem; margin-bottom:1.5rem;">
+      At Sunbird Spark Mobile App, we value your trust and are committed to protecting your privacy. This Privacy Policy explains what permissions our app uses, why they are required, and how your data is handled responsibly.
+    </p>
+
+    <!-- Section 1 -->
+    <section>
+      <h2><span class="num">1</span> Permissions We Use and Why</h2>
+
+      <div class="permission-group">
+        <h3>Network &amp; Internet</h3>
+        <ul>
+          <li><strong>INTERNET</strong> – Required to connect the app with Sunbird's online services, synchronize content, and enable features like downloading courses, uploading progress, and receiving updates.</li>
+        </ul>
+      </div>
+
+      <div class="permission-group">
+        <h3>Camera</h3>
+        <ul>
+          <li><strong>Camera</strong> – Used to scan QR codes for accessing courses, content, or certificates. The camera is accessed only when you initiate a scan.</li>
+        </ul>
+      </div>
+
+      <div class="permission-group">
+        <h3>Storage &amp; Media</h3>
+        <ul>
+          <li><strong>READ_EXTERNAL_STORAGE</strong> – Enables reading files from your device storage, such as downloaded content or certificates (Android 10 and below).</li>
+          <li><strong>WRITE_EXTERNAL_STORAGE</strong> – Allows downloading and saving content like eBooks, videos, or certificates to your device (Android 10 and below only).</li>
+          <li><strong>READ_MEDIA_IMAGES</strong> – Allows access to images on your device only when you choose to upload or share them within the app (Android 13+).</li>
+          <li><strong>READ_MEDIA_VIDEO</strong> – Allows access to videos on your device only when you choose to upload or share them within the app (Android 13+).</li>
+          <li><strong>READ_MEDIA_AUDIO</strong> – Allows access to audio files on your device only when you choose to upload or share them within the app (Android 13+).</li>
+        </ul>
+      </div>
+
+      <div class="permission-group">
+        <h3>Push Notifications</h3>
+        <ul>
+          <li><strong>POST_NOTIFICATIONS</strong> – Allows us to send you important updates about courses, certificates, and announcements via push notifications.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Section 2 -->
+    <section>
+      <h2><span class="num">2</span> Information We Collect and Why</h2>
+
+      <h3>Usage Data &amp; Analytics</h3>
+      <p>We collect information about how you interact with the app — such as pages visited, content played, and features used — to improve the learning experience. This data is collected using the Sunbird telemetry system and includes:</p>
+      <ul style="margin-top:0.5rem;">
+        <li>Actions performed (e.g., opening a course, completing a quiz)</li>
+        <li>Session duration and timestamps</li>
+        <li>A hashed device identifier (not your real device ID)</li>
+        <li>Your user ID (when logged in) or an anonymous identifier (when not logged in)</li>
+      </ul>
+      <div class="highlight">
+        <p>This data is stored on your device and periodically synced to Sunbird's servers over a secure connection. It is <strong>not used for advertising</strong>.</p>
+      </div>
+
+      <h3>Device Information</h3>
+      <p>To provide and improve app functionality, we collect basic device details including your device model, operating system version, and manufacturer. This is used for compatibility, diagnostics, and push notification registration.</p>
+
+      <h3>Account &amp; Profile Data</h3>
+      <p>When you create an account or log in, we store your name, email address, profile picture, and organisation details on your device for offline access. This information is synced with and stored on Sunbird's servers. We also store and sync your course enrolments, progress, and assessment scores.</p>
+
+      <h3>Push Notification Token</h3>
+      <p>When you enable notifications, a unique token is generated by Firebase (Google's notification service) and registered with our backend. This token is used solely to deliver notifications to your device.</p>
+
+      <h3>Google Sign-In</h3>
+      <p>If you choose to sign in with Google, we receive your name, email address, and profile picture to create or link your account. We do not receive your Google password. Google's own privacy policy governs data collected during sign-in.</p>
+
+      <h3>Security Verification (reCAPTCHA)</h3>
+      <p>We use Google reCAPTCHA v3 on certain forms to protect against automated abuse. reCAPTCHA may collect behavioural data and send it to Google, governed by Google's Privacy Policy.</p>
+    </section>
+
+    <!-- Section 3 -->
+    <section>
+      <h2><span class="num">3</span> How We Handle Data</h2>
+      <ul>
+        <li>We do not sell, rent, or trade your personal data to any third parties.</li>
+        <li>Permissions are activated only when needed and used strictly for the feature they are meant for.</li>
+        <li>Sensitive data such as photos, videos, or audio is accessed only when you actively choose to upload or share.</li>
+        <li>Data transmitted online is protected using secure protocols (HTTPS).</li>
+        <li>Authentication tokens (login credentials) are stored in encrypted secure storage on your device.</li>
+        <li>Usage and profile data is stored locally on your device in a database to enable offline functionality.</li>
+      </ul>
+    </section>
+
+    <!-- Section 4 -->
+    <section>
+      <h2><span class="num">4</span> Third-Party Services</h2>
+      <p>This app integrates with the following third-party services. Each service's own privacy policy governs how they handle data:</p>
+
+      <div style="margin-top:1rem;">
+        <div class="third-party-item">
+          <div class="dot"></div>
+          <div>
+            <strong>Google Sign-In</strong>
+            For account authentication<br/>
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">https://policies.google.com/privacy</a>
+          </div>
+        </div>
+        <div class="third-party-item">
+          <div class="dot"></div>
+          <div>
+            <strong>Firebase Cloud Messaging (Google)</strong>
+            For push notifications<br/>
+            <a href="https://firebase.google.com/support/privacy" target="_blank" rel="noopener">https://firebase.google.com/support/privacy</a>
+          </div>
+        </div>
+        <div class="third-party-item">
+          <div class="dot"></div>
+          <div>
+            <strong>Google reCAPTCHA</strong>
+            For form security<br/>
+            <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">https://policies.google.com/privacy</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section 5 -->
+    <section>
+      <h2><span class="num">5</span> Your Choices</h2>
+      <ul>
+        <li>You may deny or disable non-essential permissions at any time through your device settings. Some features may be limited as a result.</li>
+        <li>You can revoke permissions already granted, and the app will continue to function with available features.</li>
+        <li>Within the app, you can control whether course administrators can access your personal information by managing your consent in your profile settings.</li>
+        <li>You can uninstall the app at any time to completely stop all data collection.</li>
+      </ul>
+    </section>
+
+    <!-- Section 6 -->
+    <section class="contact-box">
+      <h2 style="justify-content:center;"><span class="num">6</span> Contact Us</h2>
+      <p>If you have questions about this Privacy Policy, please reach out to us at:</p>
+      <a class="contact-email" href="mailto:support@sunbirdspark.com">info@sunbird.org</a>
+    </section>
+
+    <footer>
+      &copy; 2026 Sunbird Spark. All rights reserved.
+    </footer>
+  </div>
+</body>
+</html>

@@ -34,10 +34,14 @@ export const useContentSearch = (
 ): UseQueryResult<ApiResponse<ContentSearchResponse>, Error> => {
   const request = options?.request;
   const enabled = options?.enabled ?? true;
+  const searchMode = options?.searchMode ?? 'keyword';
+  const isSemantic = searchMode === 'semantic';
 
   // Inject the primaryCategory fallback when the user hasn't selected any category filter.
+  // Semantic search is cross-category by design, so the fallback is skipped (portal parity).
   const effectiveRequest = useMemo(() => {
     if (!request) return request;
+    if (isSemantic) return request;
     const hasPrimaryCategory = Array.isArray(request.filters?.primaryCategory)
       ? (request.filters!.primaryCategory as string[]).length > 0
       : !!request.filters?.primaryCategory;
@@ -49,23 +53,26 @@ export const useContentSearch = (
         primaryCategory: DEFAULT_PRIMARY_CATEGORIES,
       },
     };
-  }, [request]);
+  }, [request, isSemantic]);
 
   const queryKey = useMemo(
     () => [
       'content-search',
+      searchMode,
       effectiveRequest?.query,
       effectiveRequest?.offset,
       effectiveRequest?.limit,
       JSON.stringify(effectiveRequest?.sort_by),
       JSON.stringify(effectiveRequest?.filters),
     ],
-    [effectiveRequest]
+    [effectiveRequest, searchMode]
   );
 
   return useQuery({
     queryKey,
-    queryFn: () => contentService.contentSearch(effectiveRequest),
+    queryFn: () => isSemantic
+      ? contentService.semanticSearch(effectiveRequest)
+      : contentService.contentSearch(effectiveRequest),
     enabled: enabled && AppInitializer.isInitialized(),
     staleTime: 60 * 60 * 1000,
   });

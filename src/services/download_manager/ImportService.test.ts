@@ -510,6 +510,65 @@ describe('ImportService', () => {
     });
   });
 
+  // ── import — QuML question artifact (unzipArtifact fallback) ──
+
+  describe('import — QuML question artifact fallback', () => {
+    const qumlManifest = (artifactUrl = 'do_q/artifact.zip') => ({
+      ver: '1.1',
+      archive: {
+        items: [{
+          identifier: 'do_q',
+          mimeType: 'application/vnd.sunbird.question',
+          artifactUrl,
+          visibility: 'Default',
+        }],
+      },
+    });
+
+    it('falls back to worker extraction when capa-zip rejects absolute entry paths', async () => {
+      const { Filesystem } = await import('@capacitor/filesystem');
+      const { Zip } = await import('capa-zip');
+
+      // 1st call (ECAR unzip) succeeds; 2nd call (question artifact) hits absolute paths
+      vi.mocked(Zip.unzip)
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('Invalid zip entry path: /index.json'));
+
+      vi.mocked(Filesystem.readFile).mockImplementation(async (options) => {
+        if (options.path.endsWith('manifest.json')) {
+          return { data: JSON.stringify(qumlManifest()) } as any;
+        }
+        return { data: 'e30=' } as any;
+      });
+
+      const result = await svc.import('do_q', '/p.ecar');
+      expect(result.status).toBe('SUCCESS');
+      expect(vi.mocked(Worker)).toHaveBeenCalled();
+    });
+
+    it('re-throws non-zip errors instead of attempting worker extraction', async () => {
+      const { Filesystem } = await import('@capacitor/filesystem');
+      const { Zip } = await import('capa-zip');
+
+      // ECAR unzip succeeds; question artifact fails with an unrelated (non-zip) error
+      vi.mocked(Zip.unzip)
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('ENOSPC: no space left on device'));
+
+      vi.mocked(Filesystem.readFile).mockImplementation(async (options) => {
+        if (options.path.endsWith('manifest.json')) {
+          return { data: JSON.stringify(qumlManifest()) } as any;
+        }
+        return { data: 'e30=' } as any;
+      });
+
+      const result = await svc.import('do_q', '/p.ecar');
+      expect(result.status).toBe('FAILED');
+      expect(result.errors?.[0]).toContain('ENOSPC');
+      expect(vi.mocked(Worker)).not.toHaveBeenCalled();
+    });
+  });
+
   // ── import — visibility upgrade (standalone import) ──
 
   describe('import — visibility upgrade', () => {

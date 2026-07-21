@@ -23,6 +23,11 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+// ── Mock NetworkProvider ──
+vi.mock('../providers/NetworkProvider', () => ({
+  useNetwork: () => ({ connected: true, isOffline: false }),
+}));
+
 // ── Mock router ──
 const mockPush = vi.fn();
 const mockGoBack = vi.fn();
@@ -107,9 +112,9 @@ describe('SearchPage', () => {
     expect(screen.getByPlaceholderText('Search courses, textbooks...')).toBeInTheDocument();
   });
 
-  it('renders Cancel button', () => {
+  it('renders back button', () => {
     render(<SearchPage />);
-    expect(screen.getByText('Cancel')).toBeInTheDocument();
+    expect(screen.getByLabelText('back')).toBeInTheDocument();
   });
 
   it('shows default state when no search query', () => {
@@ -117,9 +122,9 @@ describe('SearchPage', () => {
     expect(screen.getByText('Search for courses, textbooks, and more')).toBeInTheDocument();
   });
 
-  it('navigates back when Cancel is clicked', () => {
+  it('navigates back when back button is clicked', () => {
     render(<SearchPage />);
-    fireEvent.click(screen.getByText('Cancel'));
+    fireEvent.click(screen.getByLabelText('back'));
     expect(mockGoBack).toHaveBeenCalled();
   });
 

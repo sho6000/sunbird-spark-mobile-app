@@ -4,13 +4,15 @@ import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 // vi.hoisted ensures these are available when the hoisted vi.mock factories run.
-const { mockContentSearch } = vi.hoisted(() => ({
+const { mockContentSearch, mockSemanticSearch } = vi.hoisted(() => ({
   mockContentSearch: vi.fn(),
+  mockSemanticSearch: vi.fn(),
 }));
 
 vi.mock('../services/ContentService', () => ({
   ContentService: class {
     contentSearch = mockContentSearch;
+    semanticSearch = mockSemanticSearch;
   },
 }));
 
@@ -200,5 +202,51 @@ describe('useContentSearch', () => {
 
     // When request is undefined, it should be passed as-is
     expect(mockContentSearch).toHaveBeenCalledWith(undefined);
+  });
+
+  describe('semantic search mode', () => {
+    it('should call semanticSearch (not contentSearch) when searchMode is "semantic"', async () => {
+      mockSemanticSearch.mockResolvedValue({ data: {} });
+
+      renderHook(
+        () => useContentSearch({ searchMode: 'semantic', request: { query: 'fractions' } }),
+        { wrapper: createWrapper() }
+      );
+
+      await waitFor(() => {
+        expect(mockSemanticSearch).toHaveBeenCalled();
+      });
+      expect(mockContentSearch).not.toHaveBeenCalled();
+    });
+
+    it('should NOT inject default primaryCategory in semantic mode', async () => {
+      mockSemanticSearch.mockResolvedValue({ data: {} });
+
+      renderHook(
+        () => useContentSearch({ searchMode: 'semantic', request: { query: 'q', filters: {} } }),
+        { wrapper: createWrapper() }
+      );
+
+      await waitFor(() => {
+        expect(mockSemanticSearch).toHaveBeenCalled();
+      });
+
+      const calledWith = mockSemanticSearch.mock.calls[0][0];
+      expect(calledWith.filters.primaryCategory).toBeUndefined();
+    });
+
+    it('should use contentSearch (keyword) by default', async () => {
+      mockContentSearch.mockResolvedValue({ data: {} });
+
+      renderHook(
+        () => useContentSearch({ request: { query: 'q', filters: { primaryCategory: ['Course'] } } }),
+        { wrapper: createWrapper() }
+      );
+
+      await waitFor(() => {
+        expect(mockContentSearch).toHaveBeenCalled();
+      });
+      expect(mockSemanticSearch).not.toHaveBeenCalled();
+    });
   });
 });

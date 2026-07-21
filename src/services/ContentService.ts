@@ -14,7 +14,8 @@ const DEFAULT_CONTENT_FIELDS = [
   'mimeType', 'name', 'originData', 'osId', 'owner', 'pkgVersion', 'publisher',
   'questions', 'resourceType', 'scoreDisplayConfig', 'status', 'streamingUrl',
   'template', 'templateId', 'totalQuestions', 'totalScore', 'versionKey', 'visibility',
-  'year', 'primaryCategory', 'additionalCategories', 'interceptionPoints', 'interceptionType', 'downloadUrl'
+  'year', 'primaryCategory', 'additionalCategories', 'interceptionPoints', 'interceptionType', 'downloadUrl',
+  'launchFile','scoList'
 ];
 
 export class ContentService {
@@ -101,6 +102,32 @@ export class ContentService {
         offset: request.offset ?? 0,
         query: request.query ?? '',
         sort_by: request.sort_by ?? { lastUpdatedOn: 'desc' },
+      },
+    });
+  }
+
+  /**
+   * Semantic (AI) search. Hits the same endpoint as contentSearch but flags
+   * search_mode=semantic so the upstream service runs a vector search.
+   * Online only — there is no on-device embedding index, so when offline we
+   * return an empty offline response and the caller falls back to keyword mode.
+   */
+  public async semanticSearch(
+    request: ContentSearchRequest = {}
+  ): Promise<ApiResponse<ContentSearchResponse>> {
+    if (!networkService.isConnected()) {
+      return buildOfflineResponse<ContentSearchResponse>({ content: [], count: 0 });
+    }
+
+    return getClient().post<ContentSearchResponse>('/composite/v1/search', {
+      request: {
+        filters: request.filters ?? {},
+        facets: request.facets,
+        limit: request.limit ?? 9,
+        offset: request.offset ?? 0,
+        query: request.query ?? '',
+        search_mode: 'semantic',
+        semantic: request.semantic ?? { k: 50, min_score: 0.6 },
       },
     });
   }

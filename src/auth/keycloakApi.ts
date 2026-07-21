@@ -17,7 +17,7 @@ export const loginWithCredentials = async (
   const baseUrl = config.baseUrl;
 
   const data = await httpService.post<AuthTokens | AuthApiError>(
-    `${baseUrl}/mobile/keycloak/login`,
+    `${baseUrl}/api/mobile/keycloak/login`,
     { emailId, password },
   );
 

@@ -251,10 +251,14 @@ vi.mock('./components/common/PageLoader', () => ({
   default: () => <div data-testid="page-loader">Loading...</div>,
 }));
 
-// Mock notification hooks (used by AppHeader)
+// Mock notification hooks (used by AppHeader and PushNotificationGuard)
+const { mockNotificationUpdate } = vi.hoisted(() => ({
+  mockNotificationUpdate: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('./hooks/useNotifications', () => ({
   useNotificationRead: () => ({ notifications: [], isLoading: false, error: null, refetch: vi.fn() }),
   useNotificationGrouping: () => ({ groupedNotifications: [], unreadCount: 0 }),
+  useNotificationUpdate: () => ({ mutateAsync: mockNotificationUpdate }),
 }));
 
 // Mock React Query — PushNotificationGuard uses useQueryClient
@@ -426,6 +430,35 @@ describe('App', () => {
       expect(mockInteract).toHaveBeenCalledWith({ id: 'push-notification-update-app', pageid: 'AppUpdate' });
     });
     expect(mockOpenAppStore).toHaveBeenCalledTimes(1);
+  });
+
+  it('marks the notification as read when push:tapped carries id + userId', async () => {
+    mockNotificationUpdate.mockClear();
+    render(<App />);
+    window.dispatchEvent(
+      new CustomEvent('push:tapped', {
+        detail: { id: 'notif-42', userId: 'user-7', actionType: 'search' },
+      }),
+    );
+    await waitFor(() => {
+      expect(mockNotificationUpdate).toHaveBeenCalledWith({
+        ids: ['notif-42'],
+        userId: 'user-7',
+      });
+    });
+  });
+
+  it('does not mark read when push:tapped lacks a notification id', () => {
+    mockNotificationUpdate.mockClear();
+    render(<App />);
+    window.dispatchEvent(
+      new CustomEvent('push:tapped', {
+        detail: { userId: 'user-7', actionType: 'search' },
+      }),
+    );
+    // The handler short-circuits synchronously when notificationId is absent,
+    // so we can assert immediately without waiting for any async chain.
+    expect(mockNotificationUpdate).not.toHaveBeenCalled();
   });
 
   describe('LoginRedirectGuard', () => {

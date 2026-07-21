@@ -256,6 +256,90 @@ describe('ContentService', () => {
     });
   });
 
+  describe('semanticSearch', () => {
+    const mockSearchResponse = {
+      data: { count: 1, content: [{ identifier: 'do_1', name: 'Item' }] },
+      status: 200,
+      headers: {},
+    };
+
+    it('should call composite search with search_mode semantic and default semantic config', async () => {
+      mockHttpClient.post.mockResolvedValue(mockSearchResponse);
+
+      const result = await contentService.semanticSearch({ query: 'fractions' });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/composite/v1/search', {
+        request: {
+          filters: {},
+          facets: undefined,
+          limit: 9,
+          offset: 0,
+          query: 'fractions',
+          search_mode: 'semantic',
+          semantic: { k: 50, min_score: 0.6 },
+        },
+      });
+      expect(result).toEqual(mockSearchResponse);
+    });
+
+    it('should not send sort_by (semantic is relevance-ordered)', async () => {
+      mockHttpClient.post.mockResolvedValue(mockSearchResponse);
+
+      await contentService.semanticSearch({ query: 'science', sort_by: { lastUpdatedOn: 'asc' } });
+
+      const body = mockHttpClient.post.mock.calls[0][1];
+      expect(body.request).not.toHaveProperty('sort_by');
+    });
+
+    it('should pass custom filters, limit and offset', async () => {
+      mockHttpClient.post.mockResolvedValue(mockSearchResponse);
+
+      await contentService.semanticSearch({
+        query: 'q',
+        filters: { primaryCategory: ['Course'] },
+        limit: 20,
+        offset: 10,
+      });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/composite/v1/search', {
+        request: expect.objectContaining({
+          filters: { primaryCategory: ['Course'] },
+          limit: 20,
+          offset: 10,
+        }),
+      });
+    });
+
+    it('should pass a custom semantic config when provided', async () => {
+      mockHttpClient.post.mockResolvedValue(mockSearchResponse);
+
+      await contentService.semanticSearch({ query: 'q', semantic: { k: 10, min_score: 0.9 } });
+
+      expect(mockHttpClient.post).toHaveBeenCalledWith('/composite/v1/search', {
+        request: expect.objectContaining({
+          semantic: { k: 10, min_score: 0.9 },
+        }),
+      });
+    });
+
+    it('should return an empty offline response and skip the network when offline', async () => {
+      (networkService.isConnected as any).mockReturnValue(false);
+
+      const result = await contentService.semanticSearch({ query: 'q' });
+
+      expect(mockHttpClient.post).not.toHaveBeenCalled();
+      expect(result.status).toBe(200);
+      expect((result.data as any).content).toEqual([]);
+      expect((result.data as any).count).toBe(0);
+    });
+
+    it('should propagate errors from the HTTP client', async () => {
+      mockHttpClient.post.mockRejectedValue(new Error('Network error'));
+
+      await expect(contentService.semanticSearch({ query: 'q' })).rejects.toThrow('Network error');
+    });
+  });
+
   describe('contentRead', () => {
     const mockContent = {
       identifier: 'do_content_001',

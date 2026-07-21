@@ -14,9 +14,22 @@ const resources = {
   pt: { translation: pt },
 };
 
+// localStorage can be unavailable or throw (Safari private mode, disabled
+// storage, quota errors). Guard so i18n init never crashes app startup.
+let initialLanguage = 'en';
+try {
+  initialLanguage = localStorage.getItem('appLanguage') || 'en';
+  // The QuML player web component reads its UI language from the 'app-language'
+  // localStorage key. Seed it at startup so a player opened before the user
+  // manually switches language still picks up the stored language.
+  localStorage.setItem('app-language', initialLanguage);
+} catch {
+  // Fall back to 'en'; the player applies its own 'en' default too.
+}
+
 i18n.use(initReactI18next).init({
   resources,
-  lng: localStorage.getItem('appLanguage') || 'en',
+  lng: initialLanguage,
   fallbackLng: 'en',
   interpolation: {
     escapeValue: false,

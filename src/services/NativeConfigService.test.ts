@@ -48,6 +48,7 @@ describe('NativeConfigService', () => {
         mobileAppSecret: '',
         producerId: '',
         appVersion: '',
+        enableAiSearch: true,
       });
       expect(mockRead).not.toHaveBeenCalled();
     });
@@ -59,7 +60,8 @@ describe('NativeConfigService', () => {
         .mockResolvedValueOnce({ value: 'mobile_app' })
         .mockResolvedValueOnce({ value: 'secret123' })
         .mockResolvedValueOnce({ value: 'sunbird.app' })
-        .mockResolvedValueOnce({ value: '1.0.0' });
+        .mockResolvedValueOnce({ value: '1.0.0' })
+        .mockResolvedValueOnce({ value: 'true' });
 
       const result = await NativeConfigServiceInstance.load();
 
@@ -70,15 +72,17 @@ describe('NativeConfigService', () => {
         mobileAppSecret: 'secret123',
         producerId: 'sunbird.app',
         appVersion: '1.0.0',
+        enableAiSearch: true,
       });
 
-      expect(mockRead).toHaveBeenCalledTimes(6);
+      expect(mockRead).toHaveBeenCalledTimes(7);
       expect(mockRead).toHaveBeenCalledWith({ key: 'base_url' });
       expect(mockRead).toHaveBeenCalledWith({ key: 'mobile_app_consumer' });
       expect(mockRead).toHaveBeenCalledWith({ key: 'mobile_app_key' });
       expect(mockRead).toHaveBeenCalledWith({ key: 'mobile_app_secret' });
       expect(mockRead).toHaveBeenCalledWith({ key: 'producer_id' });
       expect(mockRead).toHaveBeenCalledWith({ key: 'app_version' });
+      expect(mockRead).toHaveBeenCalledWith({ key: 'enable_ai_search' });
     });
 
     it('should handle null/undefined values from native settings', async () => {
@@ -93,6 +97,7 @@ describe('NativeConfigService', () => {
         mobileAppSecret: '',
         producerId: '',
         appVersion: '',
+        enableAiSearch: true,
       });
     });
 
@@ -108,6 +113,7 @@ describe('NativeConfigService', () => {
         mobileAppSecret: '',
         producerId: '',
         appVersion: '',
+        enableAiSearch: true,
       });
 
       expect((NativeConfigServiceInstance as any).loadPromise).toBeNull();
@@ -120,13 +126,14 @@ describe('NativeConfigService', () => {
         .mockResolvedValueOnce({ value: 'mobile_app' })
         .mockResolvedValueOnce({ value: 'secret123' })
         .mockResolvedValueOnce({ value: 'sunbird.app' })
-        .mockResolvedValueOnce({ value: '1.0.0' });
+        .mockResolvedValueOnce({ value: '1.0.0' })
+        .mockResolvedValueOnce({ value: 'true' });
 
       const result1 = await NativeConfigServiceInstance.load();
       const result2 = await NativeConfigServiceInstance.load();
 
       expect(result1).toBe(result2);
-      expect(mockRead).toHaveBeenCalledTimes(6);
+      expect(mockRead).toHaveBeenCalledTimes(7);
     });
 
     it('should deduplicate concurrent calls', async () => {
@@ -136,7 +143,8 @@ describe('NativeConfigService', () => {
         .mockResolvedValueOnce({ value: 'mobile_app' })
         .mockResolvedValueOnce({ value: 'secret123' })
         .mockResolvedValueOnce({ value: 'sunbird.app' })
-        .mockResolvedValueOnce({ value: '1.0.0' });
+        .mockResolvedValueOnce({ value: '1.0.0' })
+        .mockResolvedValueOnce({ value: 'true' });
 
       const [result1, result2] = await Promise.all([
         NativeConfigServiceInstance.load(),
@@ -144,7 +152,7 @@ describe('NativeConfigService', () => {
       ]);
 
       expect(result1).toBe(result2);
-      expect(mockRead).toHaveBeenCalledTimes(6);
+      expect(mockRead).toHaveBeenCalledTimes(7);
     });
 
     it('should handle partial native setting failures', async () => {
@@ -159,6 +167,7 @@ describe('NativeConfigService', () => {
         mobileAppSecret: '',
         producerId: '',
         appVersion: '',
+        enableAiSearch: true,
       });
     });
   });
@@ -176,7 +185,8 @@ describe('NativeConfigService', () => {
         .mockResolvedValueOnce({ value: 'mobile_app' })
         .mockResolvedValueOnce({ value: 'secret123' })
         .mockResolvedValueOnce({ value: 'sunbird.app' })
-        .mockResolvedValueOnce({ value: '1.0.0' });
+        .mockResolvedValueOnce({ value: '1.0.0' })
+        .mockResolvedValueOnce({ value: 'true' });
 
       await NativeConfigServiceInstance.load();
       const config = (NativeConfigServiceInstance as any).config;
