@@ -10,6 +10,8 @@ import { useIsContentLocal } from '../../hooks/useIsContentLocal';
 import { buildCollectionCdata, buildObjectRollup } from '../../services/course/collectionTelemetryContext';
 import { resolveContentForPlayer } from '../../services/content/contentPlaybackResolver';
 import { contentDbService } from '../../services/db/ContentDbService';
+import { mergeTranscriptsFromServerData } from '../../services/ContentService';
+import { importService } from '../../services/download_manager';
 import type { HierarchyContentNode } from '../../types/collectionTypes';
 import PageLoader from '../common/PageLoader';
 import { telemetryService } from '../../services/TelemetryService';
@@ -49,6 +51,7 @@ const CollectionContentPlayer: React.FC<CollectionContentPlayerProps> = ({
   const { data, isLoading, error, refetch, fetchStatus } = useContentRead(contentId);
   const contentData = data?.data?.content;
   const isQumlContent = QUML_MIME_TYPES.includes(contentData?.mimeType);
+  const isVideoContent = !!contentData?.mimeType?.startsWith('video/');
 
   const {
     data: qumlData,
@@ -56,6 +59,24 @@ const CollectionContentPlayer: React.FC<CollectionContentPlayerProps> = ({
     error: qumlError,
     refetch: refetchQuml,
   } = useQumlContent(contentId, { enabled: isQumlContent });
+
+  // enrich=all (transcripts) is only fetched for actual video content - fired
+  // as a second read (mimeType isn't known until the base read above
+  // resolves), and only blocks the player mount below (isCaptionsPending).
+  // The player web component reads its config once on mount and doesn't
+  // detect prop changes (see isResolving comment below), so transcripts must
+  // be ready BEFORE render, same as the offline URL resolution already does.
+  const {
+    data: enrichedVideoData,
+    isLoading: isEnrichedVideoLoading,
+    isFetching: isEnrichedVideoFetching,
+  } = useContentRead(contentId, { enrichTranscripts: true, enabled: isVideoContent });
+  // isLoading only covers the FIRST fetch (React Query: isPending && isFetching) -
+  // once this query has succeeded once, isLoading goes false even while a later
+  // refetch is still in flight. Checking isFetching too closes that gap - otherwise
+  // the player could mount mid-refetch with stale/captions-less data it will never
+  // pick up (it reads config once on mount, see the comment above).
+  const isCaptionsPending = isVideoContent && (isEnrichedVideoLoading || isEnrichedVideoFetching);
 
   const { isLocal, isCheckPending: isLocalCheckPending } = useIsContentLocal(contentId, { includeParentVisibility: true });
 
@@ -103,6 +124,7 @@ const CollectionContentPlayer: React.FC<CollectionContentPlayerProps> = ({
         if (!parsed.mimeType && entry.mime_type) parsed.mimeType = entry.mime_type;
         if (!parsed.contentType && entry.content_type) parsed.contentType = entry.content_type;
         if (!parsed.primaryCategory && entry.primary_category) parsed.primaryCategory = entry.primary_category;
+        mergeTranscriptsFromServerData(parsed, entry.server_data);
         if (!cancelled) setLocalFallbackMeta(parsed);
       } catch (e) {
         console.error('[CollectionContentPlayer] Failed to parse local_data for', contentId, e);
@@ -114,7 +136,36 @@ const CollectionContentPlayer: React.FC<CollectionContentPlayerProps> = ({
     return () => { cancelled = true; };
   }, [contentId, isLocal, isApiUnavailable, contentData]);
 
-  const apiMetadata = isQumlContent ? qumlData : contentData;
+  // Backfill: transcripts are generated asynchronously, sometimes a few minutes
+  // after the content goes Live - so the enrich=all read at download time can
+  // legitimately have no transcriptUrl yet. Whenever a fresh enriched read comes
+  // back with one for content that's already downloaded, and no local transcripts
+  // were ever captured, retry the caption download in the background so captions
+  // still end up available offline without requiring a full re-download.
+  useEffect(() => {
+    const enrichedContent = enrichedVideoData?.data?.content as
+      { enrichment?: { transcriptUrl?: string }; transcripts?: Record<string, unknown>[] } | undefined;
+    const transcriptUrl = enrichedContent?.enrichment?.transcriptUrl;
+    if (!contentId || !isLocal || !isVideoContent || !transcriptUrl) return;
+    let cancelled = false;
+    contentDbService.getByIdentifier(contentId).then((entry) => {
+      if (cancelled || !entry?.local_data) return;
+      try {
+        const parsed = JSON.parse(entry.local_data);
+        const needsBackfill = !Array.isArray(parsed.transcripts) || parsed.transcripts.length === 0;
+        if (needsBackfill) {
+          importService.downloadTranscripts(contentId, transcriptUrl, enrichedContent?.transcripts).catch((err) => {
+            console.warn('[CollectionContentPlayer] Backfill transcript download failed:', err);
+          });
+        }
+      } catch { /* ignore parse errors */ }
+    });
+    return () => { cancelled = true; };
+  }, [contentId, isLocal, isVideoContent, enrichedVideoData]);
+
+  const apiMetadata = isQumlContent
+    ? qumlData
+    : (isVideoContent ? (enrichedVideoData?.data?.content ?? contentData) : contentData);
   const rawPlayerMetadata = apiMetadata ?? localFallbackMeta;
   const playerIsLoading = isLoading || (isQumlContent && isQumlLoading);
   // Don't show API error if we have local fallback data
@@ -260,7 +311,7 @@ const CollectionContentPlayer: React.FC<CollectionContentPlayerProps> = ({
   const isLocalFallbackPending = isLocal && isApiUnavailable && !contentData && !localFallbackMeta;
   const isResolving = isLocal && (resolvedMetadata == null || resolvedMetadata.id !== rawPlayerMetadata?.identifier) && !!rawPlayerMetadata?.identifier;
 
-  if (playerIsLoading || isLocalCheckPending || isLocalFallbackPending || isResolving) {
+  if (playerIsLoading || isLocalCheckPending || isLocalFallbackPending || isResolving || isCaptionsPending) {
     return (
       <IonPage className="cp-fullscreen">
         <IonContent scrollY={false}>

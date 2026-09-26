@@ -23,6 +23,12 @@ export interface BulkDownloadResult {
  * Queue deduplication is handled automatically by DownloadManager.enqueue() —
  * it skips items already in the queue unless they are in a terminal state (FAILED/CANCELLED).
  *
+ * Caption enrichment (enrichment.transcriptUrl) for video leaves is NOT fetched
+ * here - the hierarchy API response never carries it anyway. ImportService.import()
+ * fetches it itself as a fallback when missing, at actual import time (see
+ * ImportService.ts) - keeping this function free of any extra network round-trips
+ * on the "start bulk download" path.
+ *
  * @param collectionId — used as `parentIdentifier` to group downloads for aggregate progress
  * @param nodes — hierarchy children to download (could be full course or single unit)
  * @param options.priority — download priority for leaf content (default 0)

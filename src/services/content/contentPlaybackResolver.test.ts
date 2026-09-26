@@ -119,6 +119,104 @@ describe('resolveContentForPlayer', () => {
     expect(result).toBe(metadata);
   });
 
+  describe('transcript resolution for video content', () => {
+    const remoteTranscripts = [
+      { language: 'English', identifier: 'do_123_en', languageCode: 'en', artifactUrl: 'https://cdn.example.com/do_123/en/captions.vtt' },
+    ];
+    const localTranscripts = [
+      { language: 'English', identifier: 'do_123_en', languageCode: 'en', artifactUrl: 'transcripts/en/captions.vtt', wordByWordUrl: 'transcripts/en/captions.vtt' },
+    ];
+
+    it('overrides caller-supplied (remote) transcripts with the local ones from local_data', async () => {
+      mockGetByIdentifier.mockResolvedValue({
+        content_state: 2,
+        path: 'file:///data/content/do_123',
+        visibility: 'Default',
+        local_data: JSON.stringify({ identifier: 'do_123', transcripts: localTranscripts }),
+        server_data: JSON.stringify({ identifier: 'do_123', transcripts: remoteTranscripts }),
+      } as any);
+
+      const result = await resolveContentForPlayer('do_123', { ...metadata, transcripts: remoteTranscripts });
+
+      expect((result as any).transcripts).toEqual(localTranscripts);
+    });
+
+    it('defers to server_data (ignoring local_data) for Parent-visibility content', async () => {
+      const staleLocalTranscripts = [
+        { language: 'English', identifier: 'do_123_en', languageCode: 'en', artifactUrl: 'transcripts/en/stale.vtt' },
+      ];
+      mockGetByIdentifier.mockResolvedValue({
+        content_state: 2,
+        path: 'file:///data/content/do_123',
+        visibility: 'Parent',
+        local_data: JSON.stringify({ identifier: 'do_123', transcripts: staleLocalTranscripts }),
+        server_data: JSON.stringify({ identifier: 'do_123', transcripts: localTranscripts }),
+      } as any);
+
+      const result = await resolveContentForPlayer('do_123', { ...metadata, transcripts: remoteTranscripts });
+
+      expect((result as any).transcripts).toEqual(localTranscripts);
+    });
+
+    it('merges local transcripts from server_data when local_data has none', async () => {
+      mockGetByIdentifier.mockResolvedValue({
+        content_state: 2,
+        path: 'file:///data/content/do_123',
+        local_data: JSON.stringify({ identifier: 'do_123' }),
+        server_data: JSON.stringify({ identifier: 'do_123', transcripts: localTranscripts }),
+      } as any);
+
+      const result = await resolveContentForPlayer('do_123', { ...metadata, transcripts: remoteTranscripts });
+
+      expect((result as any).transcripts).toEqual(localTranscripts);
+    });
+
+    it('falls back to caller-supplied transcripts when no local transcripts exist yet', async () => {
+      mockGetByIdentifier.mockResolvedValue({
+        content_state: 2,
+        path: 'file:///data/content/do_123',
+        local_data: JSON.stringify({ identifier: 'do_123' }),
+        server_data: JSON.stringify({ identifier: 'do_123' }),
+      } as any);
+
+      const result = await resolveContentForPlayer('do_123', { ...metadata, transcripts: remoteTranscripts });
+
+      expect((result as any).transcripts).toEqual(remoteTranscripts);
+    });
+
+    it('does not touch transcripts for non-video content', async () => {
+      mockGetByIdentifier.mockResolvedValue({
+        content_state: 2,
+        path: 'file:///data/content/do_pdf',
+        local_data: JSON.stringify({ identifier: 'do_pdf', transcripts: localTranscripts }),
+        server_data: JSON.stringify({ identifier: 'do_pdf' }),
+      } as any);
+
+      const pdfMeta = {
+        identifier: 'do_pdf',
+        mimeType: 'application/pdf',
+        artifactUrl: 'https://cdn.example.com/do_pdf/doc.pdf',
+        transcripts: remoteTranscripts,
+      };
+      const result = await resolveContentForPlayer('do_pdf', pdfMeta);
+
+      expect((result as any).transcripts).toEqual(remoteTranscripts);
+    });
+
+    it('falls back to caller-supplied transcripts when local_data/server_data are malformed', async () => {
+      mockGetByIdentifier.mockResolvedValue({
+        content_state: 2,
+        path: 'file:///data/content/do_123',
+        local_data: 'not json',
+        server_data: 'also not json',
+      } as any);
+
+      const result = await resolveContentForPlayer('do_123', { ...metadata, transcripts: remoteTranscripts });
+
+      expect((result as any).transcripts).toEqual(remoteTranscripts);
+    });
+  });
+
   describe('loadLocalBody for ECML', () => {
     const ecmlMeta = {
       identifier: 'do_ecml',

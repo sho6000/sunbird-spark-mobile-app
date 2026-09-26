@@ -4,6 +4,18 @@ import { DatabaseService } from '../db/DatabaseService';
 import { ContentDbService } from '../db/ContentDbService';
 import type { ContentEntry } from './types';
 
+// ImportService instantiates `new ContentService()` once at module load, so
+// per-test mockImplementation() on the constructor wouldn't reach that
+// already-constructed singleton. Share one mock function instead (vi.hoisted
+// so it's available inside the vi.mock factory below).
+const { mockContentRead } = vi.hoisted(() => ({ mockContentRead: vi.fn() }));
+
+vi.mock('../ContentService', () => ({
+  ContentService: vi.fn().mockImplementation(function ContentServiceMock(this: any) {
+    this.contentRead = mockContentRead;
+  }),
+}));
+
 // Mock all native dependencies
 vi.mock('@capacitor/filesystem', () => ({
   Filesystem: {
@@ -90,6 +102,7 @@ describe('ImportService', () => {
     db = makeMockDb();
     contentDb = makeMockContentDb();
     svc = new ImportService(db, contentDb);
+    mockContentRead.mockReset().mockResolvedValue({ data: { content: {} } });
   });
 
   // ── import — manifest not found ──
@@ -688,6 +701,264 @@ describe('ImportService', () => {
       expect(contentDb.update).toHaveBeenCalledWith('do_123', expect.objectContaining({
         local_data: expect.stringContaining('appIconLocal'),
       }));
+    });
+  });
+
+  describe('downloadTranscripts', () => {
+    it('downloads, extracts, and rewrites transcript URLs to relative local paths', async () => {
+      const { Filesystem } = await import('@capacitor/filesystem');
+      const { CapacitorHttp } = await import('@capacitor/core');
+      const { Zip } = await import('capa-zip');
+
+      vi.mocked(CapacitorHttp.get).mockResolvedValue({ status: 200, data: 'base64ecarbytes' } as any);
+
+      vi.mocked(Filesystem.readFile).mockResolvedValue({
+        data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_123', mimeType: 'video/mp4' }] } }),
+      } as any);
+
+      vi.mocked(Filesystem.readdir).mockResolvedValue({
+        files: [
+          { name: 'en', type: 'directory' },
+          { name: 'fr', type: 'directory' },
+        ],
+      } as any);
+
+      vi.mocked(contentDb.getByIdentifier).mockResolvedValue({
+        identifier: 'do_123',
+        local_data: JSON.stringify({
+          identifier: 'do_123',
+          transcripts: [
+            { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://cdn/en.vtt', wordByWordUrl: 'https://cdn/en.vtt' },
+            { language: 'French', identifier: 'c_fr', languageCode: 'fr', artifactUrl: 'https://cdn/fr.vtt', wordByWordUrl: 'https://cdn/fr.vtt' },
+          ],
+        }),
+        server_data: JSON.stringify({
+          identifier: 'do_123',
+          transcripts: [
+            { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://cdn/en.vtt', wordByWordUrl: 'https://cdn/en.vtt' },
+          ],
+        }),
+      } as any);
+
+      await svc.import('do_123', '/p.ecar', {
+        enrichment: { transcriptUrl: 'https://cdn/do_123_transcripts.ecar' },
+      });
+
+      expect(CapacitorHttp.get).toHaveBeenCalledWith(expect.objectContaining({ url: 'https://cdn/do_123_transcripts.ecar' }));
+      expect(Zip.unzip).toHaveBeenCalled();
+      expect(Filesystem.copy).toHaveBeenCalledWith(expect.objectContaining({
+        from: expect.stringContaining('en/captions.vtt'),
+      }));
+      expect(Filesystem.copy).toHaveBeenCalledWith(expect.objectContaining({
+        from: expect.stringContaining('fr/captions.vtt'),
+      }));
+
+      const updateCall = vi.mocked(contentDb.update).mock.calls.find((c) => c[0] === 'do_123');
+      expect(updateCall).toBeDefined();
+      const updatedLocalData = JSON.parse((updateCall![1] as any).local_data);
+      expect(updatedLocalData.transcripts).toEqual([
+        { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'transcripts/en/captions.vtt', wordByWordUrl: 'transcripts/en/captions.vtt' },
+        { language: 'French', identifier: 'c_fr', languageCode: 'fr', artifactUrl: 'transcripts/fr/captions.vtt', wordByWordUrl: 'transcripts/fr/captions.vtt' },
+      ]);
+      const updatedServerData = JSON.parse((updateCall![1] as any).server_data);
+      expect(updatedServerData.transcripts).toEqual([
+        { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'transcripts/en/captions.vtt', wordByWordUrl: 'transcripts/en/captions.vtt' },
+      ]);
+    });
+
+    it('seeds local_data/server_data from contentMeta.transcripts when neither field has a transcripts array yet', async () => {
+      // Regression test: this is the exact scenario that broke offline captions in
+      // production - the content row exists (upserted during this same import) but
+      // neither local_data nor server_data has a transcripts array yet, because the
+      // ContentService.contentRead side effect that normally seeds server_data never
+      // ran for this row. Without rawTranscripts being passed through explicitly,
+      // downloadTranscripts had nothing to rewrite and silently did nothing useful
+      // despite successfully downloading and extracting the caption ECAR.
+      const { Filesystem } = await import('@capacitor/filesystem');
+      const { CapacitorHttp } = await import('@capacitor/core');
+      const { Zip } = await import('capa-zip');
+
+      vi.mocked(CapacitorHttp.get).mockResolvedValue({ status: 200, data: 'base64ecarbytes' } as any);
+      vi.mocked(Filesystem.readFile).mockResolvedValue({
+        data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_seed', mimeType: 'video/mp4' }] } }),
+      } as any);
+      vi.mocked(Filesystem.readdir).mockResolvedValue({
+        files: [{ name: 'en', type: 'directory' }],
+      } as any);
+      vi.mocked(contentDb.getByIdentifier).mockResolvedValue({
+        identifier: 'do_seed',
+        local_data: JSON.stringify({ identifier: 'do_seed' }), // no transcripts field
+        server_data: JSON.stringify({ identifier: 'do_seed' }), // no transcripts field
+      } as any);
+
+      await svc.import('do_seed', '/p.ecar', {
+        enrichment: { transcriptUrl: 'https://cdn/do_seed_transcripts.ecar' },
+        transcripts: [
+          { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://cdn/en.vtt', wordByWordUrl: 'https://cdn/en.vtt' },
+        ],
+      });
+
+      const updateCall = vi.mocked(contentDb.update).mock.calls.find((c) => c[0] === 'do_seed');
+      expect(updateCall).toBeDefined();
+      const updatedLocalData = JSON.parse((updateCall![1] as any).local_data);
+      expect(updatedLocalData.transcripts).toEqual([
+        { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'transcripts/en/captions.vtt', wordByWordUrl: 'transcripts/en/captions.vtt' },
+      ]);
+      const updatedServerData = JSON.parse((updateCall![1] as any).server_data);
+      expect(updatedServerData.transcripts).toEqual([
+        { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'transcripts/en/captions.vtt', wordByWordUrl: 'transcripts/en/captions.vtt' },
+      ]);
+    });
+
+    it('does not attempt a transcript download when contentMeta has no enrichment.transcriptUrl', async () => {
+      const { Filesystem } = await import('@capacitor/filesystem');
+      const { CapacitorHttp } = await import('@capacitor/core');
+
+      vi.mocked(Filesystem.readFile).mockResolvedValue({
+        data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_456', mimeType: 'application/pdf' }] } }),
+      } as any);
+
+      await svc.import('do_456', '/p.ecar', { name: 'PDF content' });
+
+      expect(CapacitorHttp.get).not.toHaveBeenCalled();
+    });
+
+    it('does not fail the import when the transcript ECAR download fails', async () => {
+      const { Filesystem } = await import('@capacitor/filesystem');
+      const { CapacitorHttp } = await import('@capacitor/core');
+
+      vi.mocked(CapacitorHttp.get).mockRejectedValue(new Error('network error'));
+
+      vi.mocked(Filesystem.readFile).mockResolvedValue({
+        data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_789', mimeType: 'video/mp4' }] } }),
+      } as any);
+
+      const result = await svc.import('do_789', '/p.ecar', {
+        enrichment: { transcriptUrl: 'https://cdn/do_789_transcripts.ecar' },
+      });
+
+      expect(result.status).toBe('SUCCESS');
+    });
+
+    it('does not let a hung ECAR download block the import queue', async () => {
+      vi.useFakeTimers();
+      try {
+        const { Filesystem } = await import('@capacitor/filesystem');
+        const { CapacitorHttp } = await import('@capacitor/core');
+
+        vi.mocked(Filesystem.readFile).mockResolvedValue({
+          data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_ecar_hang', mimeType: 'video/mp4' }] } }),
+        } as any);
+        // Never resolves - simulates a hung download against an http-client with
+        // no built-in timeout. import() awaits downloadTranscripts() directly, so
+        // without a timeout here this would stall the whole import indefinitely.
+        vi.mocked(CapacitorHttp.get).mockReturnValue(new Promise(() => { }));
+
+        const resultPromise = svc.import('do_ecar_hang', '/p.ecar', {
+          enrichment: { transcriptUrl: 'https://cdn/do_ecar_hang_transcripts.ecar' },
+        });
+        await vi.advanceTimersByTimeAsync(10_000);
+        const result = await resultPromise;
+
+        expect(result.status).toBe('SUCCESS');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    describe('transcriptUrl fallback fetch (contentMeta lacks enrichment)', () => {
+      it('fetches transcriptUrl for video content when contentMeta has no enrichment', async () => {
+        const { Filesystem } = await import('@capacitor/filesystem');
+        const { CapacitorHttp } = await import('@capacitor/core');
+
+        vi.mocked(CapacitorHttp.get).mockResolvedValue({ status: 200, data: 'base64ecarbytes' } as any);
+        vi.mocked(Filesystem.readFile).mockResolvedValue({
+          data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_999', mimeType: 'video/mp4' }] } }),
+        } as any);
+        vi.mocked(Filesystem.readdir).mockResolvedValue({
+          files: [{ name: 'en', type: 'directory' }],
+        } as any);
+        vi.mocked(contentDb.getByIdentifier).mockResolvedValue({
+          identifier: 'do_999',
+          local_data: JSON.stringify({ identifier: 'do_999' }), // no transcripts field yet
+          server_data: JSON.stringify({ identifier: 'do_999' }), // no transcripts field yet
+        } as any);
+        mockContentRead.mockResolvedValue({
+          data: {
+            content: {
+              enrichment: { transcriptUrl: 'https://cdn/do_999_transcripts.ecar' },
+              transcripts: [
+                { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://cdn/en.vtt', wordByWordUrl: 'https://cdn/en.vtt' },
+              ],
+            },
+          },
+        });
+
+        await svc.import('do_999', '/p.ecar', { identifier: 'do_999', mimeType: 'video/mp4' });
+
+        expect(mockContentRead).toHaveBeenCalledWith('do_999', undefined, undefined, true);
+        expect(CapacitorHttp.get).toHaveBeenCalledWith(
+          expect.objectContaining({ url: 'https://cdn/do_999_transcripts.ecar' }),
+        );
+
+        // The fetched `transcripts` (not just transcriptUrl) must be forwarded to
+        // downloadTranscripts so it has something to localize, even though neither
+        // local_data nor server_data had a transcripts array of their own.
+        const updateCall = vi.mocked(contentDb.update).mock.calls.find((c) => c[0] === 'do_999');
+        expect(updateCall).toBeDefined();
+        const updatedLocalData = JSON.parse((updateCall![1] as any).local_data);
+        expect(updatedLocalData.transcripts).toEqual([
+          { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'transcripts/en/captions.vtt', wordByWordUrl: 'transcripts/en/captions.vtt' },
+        ]);
+      });
+
+      it('does not fetch transcriptUrl for non-video content even when enrichment is missing', async () => {
+        const { Filesystem } = await import('@capacitor/filesystem');
+        const { CapacitorHttp } = await import('@capacitor/core');
+
+        vi.mocked(Filesystem.readFile).mockResolvedValue({
+          data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_pdf', mimeType: 'application/pdf' }] } }),
+        } as any);
+
+        await svc.import('do_pdf', '/p.ecar', { identifier: 'do_pdf', mimeType: 'application/pdf' });
+
+        expect(mockContentRead).not.toHaveBeenCalled();
+        expect(CapacitorHttp.get).not.toHaveBeenCalled();
+      });
+
+      it('does not fail the import when the fallback fetch itself fails', async () => {
+        const { Filesystem } = await import('@capacitor/filesystem');
+
+        vi.mocked(Filesystem.readFile).mockResolvedValue({
+          data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_fail', mimeType: 'video/mp4' }] } }),
+        } as any);
+        mockContentRead.mockRejectedValue(new Error('network error'));
+
+        const result = await svc.import('do_fail', '/p.ecar', { identifier: 'do_fail', mimeType: 'video/mp4' });
+
+        expect(result.status).toBe('SUCCESS');
+      });
+
+      it('does not let a hung fallback fetch block the import', async () => {
+        vi.useFakeTimers();
+        try {
+          const { Filesystem } = await import('@capacitor/filesystem');
+          vi.mocked(Filesystem.readFile).mockResolvedValue({
+            data: JSON.stringify({ ver: '1.1', archive: { items: [{ identifier: 'do_hang', mimeType: 'video/mp4' }] } }),
+          } as any);
+          // Never resolves - simulates a hung request against an http-client with
+          // no built-in timeout. The internal 10s race should still let import finish.
+          mockContentRead.mockReturnValue(new Promise(() => { }));
+
+          const resultPromise = svc.import('do_hang', '/p.ecar', { identifier: 'do_hang', mimeType: 'video/mp4' });
+          await vi.advanceTimersByTimeAsync(10_000);
+          const result = await resultPromise;
+
+          expect(result.status).toBe('SUCCESS');
+        } finally {
+          vi.useRealTimers();
+        }
+      });
     });
   });
 

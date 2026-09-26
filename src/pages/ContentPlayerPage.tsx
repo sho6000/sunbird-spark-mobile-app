@@ -28,8 +28,9 @@ import { deleteDownloadedContent } from '../services/content/contentDeleteHelper
 import { NON_DOWNLOADABLE_MIME_TYPES } from '../services/content/hierarchyUtils';
 import { resolveContentForPlayer } from '../services/content/contentPlaybackResolver';
 import { contentDbService } from '../services/db/ContentDbService';
+import { mergeTranscriptsFromServerData } from '../services/ContentService';
 import { mapSearchContentToRelatedContentItems } from '../services/relatedContentMapper';
-import { downloadManager, DownloadState } from '../services/download_manager';
+import { downloadManager, DownloadState, importService } from '../services/download_manager';
 import { BackIcon } from '../components/icons/CollectionIcons';
 import PageLoader from '../components/common/PageLoader';
 import { telemetryService } from '../services/TelemetryService';
@@ -82,6 +83,7 @@ const ContentPlayerPage: React.FC = () => {
   const effectiveMimeType = contentData?.mimeType ?? localMimeType;
   const isQumlContent = QUML_MIME_TYPES.includes(effectiveMimeType as string);
   const isNonDownloadable = !!(effectiveMimeType && NON_DOWNLOADABLE_MIME_TYPES.includes(effectiveMimeType));
+  const isVideoContent = !!effectiveMimeType?.startsWith('video/');
 
   const {
     data: qumlData,
@@ -89,6 +91,26 @@ const ContentPlayerPage: React.FC = () => {
     error: qumlError,
     refetch: refetchQuml,
   } = useQumlContent(contentId, { enabled: isQumlContent });
+
+  // enrich=all (transcripts) is only fetched for actual video content - this
+  // page also renders PDF/EPUB/ECML/QUML, which have no use for it. Fired as
+  // a second read (mimeType isn't known until the base read above resolves),
+  // and only blocks the fullscreen player mount below (isCaptionsPending),
+  // not the detail-view loading state - browsing the detail page shouldn't
+  // wait on captions that are only needed once playback actually starts.
+  const {
+    data: enrichedVideoData,
+    isLoading: isEnrichedVideoLoading,
+    isFetching: isEnrichedVideoFetching,
+    refetch: refetchEnrichedVideo,
+  } = useContentRead(contentId, { enrichTranscripts: true, enabled: isVideoContent });
+  // isLoading only covers the FIRST fetch (React Query: isPending && isFetching) -
+  // once this query has succeeded once, isLoading goes false even while a later
+  // refetch (e.g. handleRetry's post-download refetchEnrichedVideo()) is still in
+  // flight. Checking isFetching too closes that gap - otherwise the player could
+  // mount mid-refetch with stale/captions-less data it will never pick up (it reads
+  // config once on mount, see the comment above the fullscreen mount guard below).
+  const isCaptionsPending = isVideoContent && (isEnrichedVideoLoading || isEnrichedVideoFetching);
 
   const playerIsLoading = isLoading || (isQumlContent && isQumlLoading);
 
@@ -135,13 +157,43 @@ const ContentPlayerPage: React.FC = () => {
         const parsed = JSON.parse(entry.local_data);
         parsed.identifier = entry.identifier;
         if (!parsed.mimeType && entry.mime_type) parsed.mimeType = entry.mime_type;
+        mergeTranscriptsFromServerData(parsed, entry.server_data);
         if (!cancelled) setLocalFallbackMeta(parsed);
       } catch { /* ignore parse errors */ }
     });
     return () => { cancelled = true; };
   }, [contentId, isLocal, isApiUnavailable, contentData]);
 
-  const apiMetadata = isQumlContent ? qumlData : contentData;
+  // Backfill: transcripts are generated asynchronously, sometimes a few minutes
+  // after the content goes Live - so the enrich=all read at download time can
+  // legitimately have no transcriptUrl yet. Whenever a fresh enriched read comes
+  // back with one for content that's already downloaded, and no local transcripts
+  // were ever captured, retry the caption download in the background so captions
+  // still end up available offline without requiring a full re-download.
+  useEffect(() => {
+    const enrichedContent = enrichedVideoData?.data?.content as
+      { enrichment?: { transcriptUrl?: string }; transcripts?: Record<string, unknown>[] } | undefined;
+    const transcriptUrl = enrichedContent?.enrichment?.transcriptUrl;
+    if (!contentId || !isLocal || !isVideoContent || !transcriptUrl) return;
+    let cancelled = false;
+    contentDbService.getByIdentifier(contentId).then((entry) => {
+      if (cancelled || !entry?.local_data) return;
+      try {
+        const parsed = JSON.parse(entry.local_data);
+        const needsBackfill = !Array.isArray(parsed.transcripts) || parsed.transcripts.length === 0;
+        if (needsBackfill) {
+          importService.downloadTranscripts(contentId, transcriptUrl, enrichedContent?.transcripts).catch((err) => {
+            console.warn('[ContentPlayerPage] Backfill transcript download failed:', err);
+          });
+        }
+      } catch { /* ignore parse errors */ }
+    });
+    return () => { cancelled = true; };
+  }, [contentId, isLocal, isVideoContent, enrichedVideoData]);
+
+  const apiMetadata = isQumlContent
+    ? qumlData
+    : (isVideoContent ? (enrichedVideoData?.data?.content ?? contentData) : contentData);
   const rawPlayerMetadata = apiMetadata ?? localFallbackMeta;
   // Don't show API error if we have local fallback data
   const playerError = rawPlayerMetadata ? null : (error || (isQumlContent ? qumlError : null));
@@ -196,7 +248,16 @@ const ContentPlayerPage: React.FC = () => {
     if (isQumlContent) {
       refetchQuml();
     }
-  }, [refetch, refetchQuml, isQumlContent]);
+    // Re-run the enriched read too, not just on error retry but also after a
+    // download completes (see downloadManager.subscribe below): the first
+    // enriched fetch typically happens before download, when the content row
+    // doesn't exist yet, so ContentService.contentRead has nothing to persist
+    // transcripts onto. Once the row exists post-download, re-fetching lets
+    // it actually cache transcripts into server_data for offline use.
+    if (isVideoContent) {
+      refetchEnrichedVideo();
+    }
+  }, [refetch, refetchQuml, isQumlContent, isVideoContent, refetchEnrichedVideo]);
 
   useEffect(() => {
     if (!contentId) return;
@@ -224,7 +285,14 @@ const ContentPlayerPage: React.FC = () => {
     }
     if (!contentData) return;
     try {
-      const result = await startContentDownload(contentData, { priority: 10 });
+      // Use the enriched content (with enrichment.transcriptUrl) when available so
+      // ImportService can download the caption ECAR alongside the video - falls
+      // back to the base content for non-video/not-yet-enriched cases. If the
+      // enriched read hasn't resolved yet (it's a second, later-firing query),
+      // ImportService.import() itself falls back to fetching transcriptUrl
+      // directly for video content, so this doesn't need to await/race it here.
+      const downloadMeta = isVideoContent ? (enrichedVideoData?.data?.content ?? contentData) : contentData;
+      const result = await startContentDownload(downloadMeta, { priority: 10 });
       console.debug('[ContentPlayerPage] download result:', result, 'for', contentId);
       switch (result) {
         case 'started':
@@ -244,7 +312,7 @@ const ContentPlayerPage: React.FC = () => {
       console.error('[ContentPlayerPage] download failed for', contentId, error);
       setToastConfig({ message: t('download.downloadFailed', 'Failed to download content.'), color: 'danger', icon: alertCircleOutline });
     }
-  }, [isOffline, contentData, contentId, t]);
+  }, [isOffline, contentData, contentId, t, isVideoContent, enrichedVideoData]);
 
   const requestDelete = useCallback(() => setShowDeleteAlert(true), []);
 
@@ -353,8 +421,10 @@ const ContentPlayerPage: React.FC = () => {
 
   // ── Fullscreen player mode (landscape, no header) ──
   if (isPlaying && playerMetadata && mimeType) {
-    // While the DB check is still pending, show a loader — don't flash the offline guard
-    if (isLocalCheckPending) {
+    // While the DB check or captions fetch is still pending, show a loader —
+    // don't mount the player before transcripts are ready (it bakes metadata
+    // into the player config once at init and won't pick up a later update).
+    if (isLocalCheckPending || isCaptionsPending) {
       return (
         <IonPage className="cp-fullscreen">
           <IonContent scrollY={false}>

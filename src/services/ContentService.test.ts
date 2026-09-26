@@ -465,6 +465,37 @@ describe('ContentService', () => {
       expect((result.data as any).content).toBeNull();
     });
 
+    it('should merge transcripts from server_data into local_data when offline (local_data is the ECAR manifest item and never has transcripts)', async () => {
+      (networkService.isConnected as any).mockReturnValue(false);
+      (contentDbService.getByIdentifier as any).mockResolvedValue({
+        visibility: 'Default',
+        local_data: JSON.stringify({ ...mockContent }), // no transcripts - manifest item
+        server_data: JSON.stringify({
+          ...mockContent,
+          transcripts: [{ language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://x/en.vtt' }],
+        }),
+      });
+
+      const result = await contentService.contentRead('do_content_001');
+
+      expect((result.data as any).content.transcripts).toEqual([
+        { language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://x/en.vtt' },
+      ]);
+    });
+
+    it('should not merge from server_data when local_data already has transcripts', async () => {
+      (networkService.isConnected as any).mockReturnValue(false);
+      (contentDbService.getByIdentifier as any).mockResolvedValue({
+        visibility: 'Default',
+        local_data: JSON.stringify({ ...mockContent, transcripts: [{ language: 'French', identifier: 'c_fr', languageCode: 'fr', artifactUrl: 'https://x/fr.vtt' }] }),
+        server_data: JSON.stringify({ ...mockContent, transcripts: [{ language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://x/en.vtt' }] }),
+      });
+
+      const result = await contentService.contentRead('do_content_001');
+
+      expect((result.data as any).content.transcripts[0].languageCode).toBe('fr');
+    });
+
     it('should fall back to DB when API throws', async () => {
       mockHttpClient.get.mockRejectedValue(new Error('Network error'));
       (contentDbService.getByIdentifier as any).mockResolvedValue({
@@ -483,6 +514,66 @@ describe('ContentService', () => {
 
       expect((result.data as any).content).toBeNull();
       expect(result.status).toBe(200);
+    });
+  });
+
+  describe('contentRead enrichTranscripts', () => {
+    it('does not add enrich=all when enrichTranscripts is false', async () => {
+      mockHttpClient.get.mockResolvedValue({ data: { content: {} }, status: 200, headers: {} });
+
+      await contentService.contentRead('do_100', [], undefined, false);
+
+      const calledUrl: string = mockHttpClient.get.mock.calls[0][0];
+      expect(calledUrl).not.toContain('enrich=all');
+    });
+
+    it('adds enrich=all when enrichTranscripts is true', async () => {
+      mockHttpClient.get.mockResolvedValue({ data: { content: {} }, status: 200, headers: {} });
+
+      await contentService.contentRead('do_101', [], undefined, true);
+
+      const calledUrl: string = mockHttpClient.get.mock.calls[0][0];
+      expect(calledUrl).toContain('/content/v1/read/do_101');
+      expect(calledUrl).toContain('enrich=all');
+    });
+
+    it('maps enrichment.transcripts to content.transcripts, filtering out non-Live and captionsUrl-less entries', async () => {
+      mockHttpClient.get.mockResolvedValue({
+        data: {
+          content: {
+            enrichment: {
+              transcripts: [
+                { code: 'c_en', language: 'English', languageCode: 'en', captionsUrl: 'https://x/en.vtt', sourceLanguage: true, status: 'Live' },
+                { code: 'c_fr', language: 'French', languageCode: 'fr', captionsUrl: 'https://x/fr.vtt', status: 'Draft' },
+                { code: 'c_pt', language: 'Portuguese', languageCode: 'pt', status: 'Live' },
+              ],
+            },
+          },
+        },
+        status: 200,
+        headers: {},
+      });
+
+      const result = await contentService.contentRead('do_102', [], undefined, true);
+
+      expect((result.data as any).content.transcripts).toEqual([
+        {
+          language: 'English',
+          identifier: 'c_en',
+          languageCode: 'en',
+          artifactUrl: 'https://x/en.vtt',
+          wordByWordUrl: 'https://x/en.vtt',
+          sourceLanguage: true,
+        },
+      ]);
+    });
+
+    it('leaves content.transcripts as an empty array when enrichment is missing', async () => {
+      mockHttpClient.get.mockResolvedValue({ data: { content: {} }, status: 200, headers: {} });
+
+      const result = await contentService.contentRead('do_103', [], undefined, true);
+
+      expect((result.data as any).content.transcripts).toEqual([]);
     });
   });
 });

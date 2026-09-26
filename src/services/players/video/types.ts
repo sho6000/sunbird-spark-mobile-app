@@ -1,4 +1,5 @@
 import type { PlayerContext, PlayerContextOverrides } from '../PlayerContextService';
+import type { PlayerTranscript } from '../../../types/contentTypes';
 
 export type VideoPlayerContextProps = PlayerContextOverrides;
 
@@ -9,6 +10,7 @@ export interface VideoPlayerMetadata {
   streamingUrl?: string;
   compatibilityLevel?: number;
   pkgVersion?: number;
+  transcripts?: PlayerTranscript[];
   [key: string]: any;
 }
 

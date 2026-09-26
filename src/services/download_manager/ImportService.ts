@@ -3,6 +3,7 @@ import { Zip } from 'capa-zip';
 import { CapacitorHttp } from '@capacitor/core';
 import { DatabaseService, databaseService } from '../db/DatabaseService';
 import { ContentDbService, contentDbService } from '../db/ContentDbService';
+import { ContentService } from '../ContentService';
 import { NON_DOWNLOADABLE_MIME_TYPES } from '../content/hierarchyUtils';
 import type { ImportResult, ImportPhase, ContentEntry } from './types';
 
@@ -10,6 +11,24 @@ type ProgressCallback = (phase: ImportPhase, percent: number) => void;
 type CancelChecker = () => Promise<boolean>;
 
 const CONTENT_DIR = 'content';
+const contentService = new ContentService();
+
+// Neither the http-client nor CapacitorHttp has a built-in request timeout.
+// Without a bound, a hung request (bad network, unresponsive server) - whether
+// fetching transcript enrichment metadata or downloading the caption ECAR
+// itself - would stall the import queue's processing of subsequent entries
+// too, since DownloadManager awaits each import() before moving to the next.
+// Capped at 10s so a slow/hung request degrades to "no captions for this
+// video" instead of blocking every other queued download behind it.
+const TRANSCRIPT_FETCH_TIMEOUT_MS = 10_000;
+
+/** Rejects with `message` after `ms` if `promise` hasn't settled by then. */
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  const timeout = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]);
+}
 
 const ecmlMimeTypes = [
   'application/vnd.ekstep.ecml-archive',
@@ -177,6 +196,29 @@ export class ImportService {
         if (iconUrl && iconUrl.startsWith('http')) {
           await this.downloadIcon(identifier, iconUrl).catch((err) => {
             console.warn('[ImportService] Icon download failed (non-fatal):', err);
+          });
+        }
+
+        // Download caption ECAR for offline use (best-effort, non-blocking) - only
+        // present when contentMeta came from an enrich=all read. Callers (single-item
+        // download, bulk/course download) don't reliably supply this - the hierarchy
+        // API never carries it, and the per-content enrich=all read is a second,
+        // separately-timed query that may not have resolved when the download started.
+        // Falling back to fetching it here, at actual import time, is the one place
+        // that's guaranteed to run once per video regardless of caller - avoiding the
+        // same fallback logic being duplicated (and separately raced/timed-out) in
+        // every caller.
+        let transcriptUrl = (contentMeta as Record<string, any>).enrichment?.transcriptUrl as string | undefined;
+        let rawTranscripts = (contentMeta as Record<string, any>).transcripts as Record<string, unknown>[] | undefined;
+        const mimeType = (contentMeta as Record<string, unknown>).mimeType as string | undefined;
+        if (!transcriptUrl && mimeType?.startsWith('video/')) {
+          const enrichment = await this.fetchTranscriptEnrichment(identifier);
+          transcriptUrl = enrichment?.transcriptUrl;
+          rawTranscripts = enrichment?.transcripts;
+        }
+        if (transcriptUrl) {
+          await this.downloadTranscripts(identifier, transcriptUrl, rawTranscripts).catch((err) => {
+            console.warn('[ImportService] Transcript download failed (non-fatal):', err);
           });
         }
       }
@@ -557,6 +599,153 @@ export class ImportService {
     }
 
     console.debug('[ImportService] Icon saved:', iconPath);
+  }
+
+  /**
+   * Fallback lookup for enrichment.transcriptUrl (and the raw transcripts array
+   * it maps to) when the caller's contentMeta doesn't already carry them
+   * (hierarchy API responses never do; a per-content enrich=all read might not
+   * have resolved yet when the download started). Bounded by a timeout since
+   * the http-client has no request timeout of its own - a hung request here
+   * must not stall the rest of the import queue.
+   *
+   * Returns `transcripts` alongside the URL (not just the URL) so downloadTranscripts()
+   * can seed local_data/server_data with them directly, instead of depending on
+   * ContentService.contentRead's side effect of persisting them to server_data
+   * having already run - that's an implicit ordering coupling between two files
+   * that's easy to break by accident, so it's made explicit here instead.
+   */
+  private async fetchTranscriptEnrichment(
+    identifier: string,
+  ): Promise<{ transcriptUrl?: string; transcripts?: Record<string, unknown>[] } | undefined> {
+    try {
+      const response = await withTimeout(
+        contentService.contentRead(identifier, undefined, undefined, true),
+        TRANSCRIPT_FETCH_TIMEOUT_MS,
+        'transcript enrichment fetch timed out',
+      );
+      const content = (response.data as any)?.content;
+      return {
+        transcriptUrl: content?.enrichment?.transcriptUrl,
+        transcripts: content?.transcripts,
+      };
+    } catch (err) {
+      console.warn('[ImportService] Failed to fetch transcript enrichment for', identifier, err);
+      return undefined;
+    }
+  }
+
+  /**
+   * Download and extract the caption ECAR (enrichment.transcriptUrl) so captions
+   * work offline without depending on the WebView's HTTP cache still holding the
+   * remote .vtt file. The ECAR is a flat zip: {identifier}/transcripts/{languageCode}/captions.vtt
+   * (confirmed against a real bundle - no manifest wrapper like content ECARs have).
+   *
+   * Extracts into content/{identifier}/transcripts/{languageCode}/captions.vtt and
+   * rewrites transcripts[].artifactUrl/wordByWordUrl in local_data + server_data to
+   * relative local paths - contentPlaybackResolver resolves these to local
+   * capacitor:// URLs, same as it already does for the video's artifactUrl.
+   *
+   * Public (not just called from import()) so it can also be used as a backfill
+   * for content that's already downloaded but whose transcripts weren't ready yet
+   * at download time - transcripts are generated asynchronously, sometimes a few
+   * minutes after the content itself goes Live, so the enrich=all read at download
+   * time can legitimately have no transcriptUrl even though one exists shortly after.
+   *
+   * `rawTranscripts` (the raw, remote-URL entries from the enrich=all read) is
+   * optional and used to SEED local_data/server_data when they don't already have
+   * a transcripts array of their own - local_data never does (the ECAR manifest
+   * doesn't carry it), and server_data only does if a prior online enrich=all read
+   * happened to persist it first. Without this, the rewrite below is a silent
+   * no-op whenever neither field has a transcripts array yet.
+   *
+   * The ECAR fetch itself is also timeout-bounded (see withTimeout above) - this
+   * method is awaited directly by import(), which is itself awaited sequentially
+   * per queued entry, so a hung download here would otherwise stall every other
+   * queued download behind it, not just this one video's captions.
+   */
+  async downloadTranscripts(
+    identifier: string,
+    transcriptUrl: string,
+    rawTranscripts?: Record<string, unknown>[],
+  ): Promise<void> {
+    const contentPath = `${CONTENT_DIR}/${identifier}`;
+    const tmpTranscriptDir = `tmp/${identifier}_transcripts_${Date.now()}`;
+    const ecarPath = `${tmpTranscriptDir}/transcripts.ecar`;
+    const extractDir = `${tmpTranscriptDir}/extracted`;
+
+    try {
+      await Filesystem.mkdir({ path: tmpTranscriptDir, directory: Directory.Data, recursive: true }).catch(() => { });
+
+      const response = await withTimeout(
+        CapacitorHttp.get({ url: transcriptUrl, responseType: 'blob' }),
+        TRANSCRIPT_FETCH_TIMEOUT_MS,
+        'transcript ECAR download timed out',
+      );
+      if (response.status !== 200) return;
+
+      await Filesystem.writeFile({ path: ecarPath, directory: Directory.Data, data: response.data });
+
+      await Filesystem.mkdir({ path: extractDir, directory: Directory.Data, recursive: true }).catch(() => { });
+      const extractUri = (await Filesystem.getUri({ path: extractDir, directory: Directory.Data })).uri;
+      const ecarUri = (await Filesystem.getUri({ path: ecarPath, directory: Directory.Data })).uri;
+      await Zip.unzip({ sourceFile: ecarUri, destinationPath: extractUri });
+
+      const transcriptsRoot = `${extractDir}/${identifier}/transcripts`;
+      let langDirs: string[] = [];
+      try {
+        const listing = await Filesystem.readdir({ path: transcriptsRoot, directory: Directory.Data });
+        langDirs = listing.files.filter((f) => f.type === 'directory').map((f) => f.name);
+      } catch {
+        return; // Nothing extracted - bundle didn't match the expected layout.
+      }
+      if (langDirs.length === 0) return;
+
+      const destTranscriptsRoot = `${contentPath}/transcripts`;
+      const localPaths: Record<string, string> = {};
+      for (const lang of langDirs) {
+        const srcFile = `${transcriptsRoot}/${lang}/captions.vtt`;
+        const destDir = `${destTranscriptsRoot}/${lang}`;
+        const destFile = `${destDir}/captions.vtt`;
+        try {
+          await Filesystem.mkdir({ path: destDir, directory: Directory.Data, recursive: true }).catch(() => { });
+          await Filesystem.copy({ from: srcFile, to: destFile, directory: Directory.Data });
+          localPaths[lang] = `transcripts/${lang}/captions.vtt`;
+        } catch (err) {
+          console.warn('[ImportService] Failed to copy captions for', lang, err);
+        }
+      }
+      if (Object.keys(localPaths).length === 0) return;
+
+      const entry = await this.contentDb.getByIdentifier(identifier);
+      if (!entry) return;
+
+      const updates: Partial<ContentEntry> = {};
+      for (const field of ['local_data', 'server_data'] as const) {
+        const raw = entry[field];
+        if (!raw) continue;
+        try {
+          const parsed = JSON.parse(raw);
+          // Seed from rawTranscripts when this field has no transcripts array of
+          // its own yet - see the doc comment above for why this matters.
+          const sourceTranscripts = Array.isArray(parsed.transcripts) ? parsed.transcripts : rawTranscripts;
+          if (Array.isArray(sourceTranscripts)) {
+            parsed.transcripts = sourceTranscripts.map((t: Record<string, unknown>) => {
+              const local = localPaths[t.languageCode as string];
+              return local ? { ...t, artifactUrl: local, wordByWordUrl: local } : t;
+            });
+            updates[field] = JSON.stringify(parsed);
+          }
+        } catch { /* ignore parse errors for this field */ }
+      }
+      if (Object.keys(updates).length > 0) {
+        await this.contentDb.update(identifier, updates);
+      }
+
+      console.debug('[ImportService] Transcripts saved for', identifier, Object.keys(localPaths));
+    } finally {
+      await Filesystem.rmdir({ path: tmpTranscriptDir, directory: Directory.Data, recursive: true }).catch(() => { });
+    }
   }
 
   private async updateSizesOnDevice(ids: string[]): Promise<void> {

@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import CollectionContentPlayer from './CollectionContentPlayer';
+import { contentDbService } from '../../services/db/ContentDbService';
+import { importService } from '../../services/download_manager';
 
 // Mock Ionic components
 vi.mock('@ionic/react', () => ({
@@ -24,7 +26,12 @@ vi.mock('../players/ContentPlayer', () => ({
   ContentPlayer: ({ mimeType, metadata, onPlayerEvent, onTelemetryEvent }: any) => {
     capturedOnPlayerEvent = onPlayerEvent;
     return (
-      <div data-testid="content-player" data-mimetype={mimeType} data-name={metadata?.name}>
+      <div
+        data-testid="content-player"
+        data-mimetype={mimeType}
+        data-name={metadata?.name}
+        data-transcripts={metadata?.transcripts ? JSON.stringify(metadata.transcripts) : undefined}
+      >
         ContentPlayer
       </div>
     );
@@ -91,6 +98,13 @@ vi.mock('../../services/content/contentPlaybackResolver', () => ({
 vi.mock('../../services/db/ContentDbService', () => ({
   contentDbService: {
     getByIdentifier: vi.fn().mockResolvedValue(null),
+  },
+}));
+
+// Mock download_manager's importService (used for the caption backfill effect)
+vi.mock('../../services/download_manager', () => ({
+  importService: {
+    downloadTranscripts: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -182,6 +196,27 @@ describe('CollectionContentPlayer', () => {
     render(<CollectionContentPlayer contentId="do_1" onClose={mockOnClose} />);
     const loader = screen.getByTestId('page-loader');
     expect(loader).toHaveAttribute('data-error', 'No content data available.');
+  });
+
+  it('keeps the loader up (does not mount the player) while a captions refetch is in flight, even though isLoading is already false', () => {
+    // The enriched (enrich=all) read has already succeeded once (isLoading: false)
+    // but is now mid-refetch (isFetching: true) - React Query's isLoading only
+    // ever covers the FIRST fetch, so a naive `isCaptionsPending = isLoading`
+    // would miss this refetch entirely and let the player mount with
+    // stale/captions-less data it can never pick up after mount.
+    mockUseContentReadReturn = {
+      data: { data: { content: defaultContentData } },
+      isLoading: false,
+      isFetching: true,
+      error: null,
+      refetch: mockRefetch,
+    };
+
+    render(<CollectionContentPlayer contentId="do_1" onClose={mockOnClose} />);
+
+    const loader = screen.getByTestId('page-loader');
+    expect(loader).toHaveAttribute('data-message', 'Loading content...');
+    expect(screen.queryByTestId('content-player')).not.toBeInTheDocument();
   });
 
   it('renders ContentPlayer when content is loaded', () => {
@@ -441,6 +476,111 @@ describe('CollectionContentPlayer', () => {
       render(<CollectionContentPlayer contentId="do_1" onClose={mockOnClose} />);
 
       expect(mockResolveContentForPlayer).not.toHaveBeenCalled();
+    });
+
+    it('merges transcripts from server_data into the local_data-based fallback metadata reaching the player', async () => {
+      mockIsLocal = true;
+      // Pass metadata through unchanged so the merged transcripts survive to the player.
+      mockResolveContentForPlayer.mockImplementation((_id: string, metadata: any) => Promise.resolve(metadata));
+
+      // React Query pauses queries entirely when offline - contentData stays
+      // undefined and the component must fall back to reading contentDbService directly.
+      mockUseContentReadReturn = {
+        data: undefined,
+        isLoading: false,
+        error: null,
+        fetchStatus: 'paused',
+        refetch: mockRefetch,
+      };
+
+      (contentDbService.getByIdentifier as any).mockResolvedValue({
+        identifier: 'do_1',
+        mime_type: 'video/mp4',
+        // local_data is the ECAR manifest item - never has transcripts.
+        local_data: JSON.stringify({ name: 'Offline Video', mimeType: 'video/mp4', identifier: 'do_1' }),
+        // server_data was cached by a prior online enrich=all read.
+        server_data: JSON.stringify({
+          name: 'Offline Video', mimeType: 'video/mp4', identifier: 'do_1',
+          transcripts: [{ language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://x/en.vtt' }],
+        }),
+      });
+
+      render(<CollectionContentPlayer contentId="do_1" onClose={mockOnClose} />);
+
+      const player = await screen.findByTestId('content-player');
+      expect(player).toHaveAttribute(
+        'data-transcripts',
+        JSON.stringify([{ language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'https://x/en.vtt' }]),
+      );
+    });
+
+    it('backfills the caption download when transcripts were not ready at download time', async () => {
+      mockIsLocal = true;
+      mockResolveContentForPlayer.mockImplementation((_id: string, metadata: any) => Promise.resolve(metadata));
+
+      const rawTranscripts = [{ language: 'English', identifier: 'do_1_en', languageCode: 'en', artifactUrl: 'https://cdn/en.vtt' }];
+      mockUseContentReadReturn = {
+        data: {
+          data: {
+            content: {
+              ...defaultContentData, identifier: 'do_1',
+              enrichment: { transcriptUrl: 'https://cdn/do_1_transcripts.ecar' },
+              transcripts: rawTranscripts,
+            },
+          },
+        },
+        isLoading: false,
+        error: null,
+        refetch: mockRefetch,
+      };
+
+      (contentDbService.getByIdentifier as any).mockResolvedValue({
+        identifier: 'do_1',
+        // local_data was written before transcripts existed - no transcripts field at all.
+        local_data: JSON.stringify({ name: 'Test Video', mimeType: 'video/mp4', identifier: 'do_1' }),
+      });
+
+      render(<CollectionContentPlayer contentId="do_1" onClose={mockOnClose} />);
+
+      // The raw (remote-URL) transcripts from the enriched read are forwarded so
+      // downloadTranscripts can seed local_data/server_data with them directly,
+      // instead of depending on ContentService.contentRead's DB-write side effect
+      // having already run first.
+      await vi.waitFor(() => {
+        expect(importService.downloadTranscripts).toHaveBeenCalledWith('do_1', 'https://cdn/do_1_transcripts.ecar', rawTranscripts);
+      });
+    });
+
+    it('does not re-download captions when local_data already has transcripts', async () => {
+      mockIsLocal = true;
+      mockResolveContentForPlayer.mockImplementation((_id: string, metadata: any) => Promise.resolve(metadata));
+
+      mockUseContentReadReturn = {
+        data: {
+          data: {
+            content: {
+              ...defaultContentData, identifier: 'do_1',
+              enrichment: { transcriptUrl: 'https://cdn/do_1_transcripts.ecar' },
+            },
+          },
+        },
+        isLoading: false,
+        error: null,
+        refetch: mockRefetch,
+      };
+
+      (contentDbService.getByIdentifier as any).mockResolvedValue({
+        identifier: 'do_1',
+        local_data: JSON.stringify({
+          name: 'Test Video', mimeType: 'video/mp4', identifier: 'do_1',
+          transcripts: [{ language: 'English', identifier: 'c_en', languageCode: 'en', artifactUrl: 'transcripts/en/captions.vtt' }],
+        }),
+      });
+
+      render(<CollectionContentPlayer contentId="do_1" onClose={mockOnClose} />);
+      await act(async () => { });
+
+      expect(importService.downloadTranscripts).not.toHaveBeenCalled();
     });
   });
 });

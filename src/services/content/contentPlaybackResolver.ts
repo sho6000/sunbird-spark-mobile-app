@@ -1,6 +1,8 @@
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Encoding } from '@capacitor/filesystem';
 import { contentDbService } from '../db/ContentDbService';
+import { mergeTranscriptsFromServerData } from '../ContentService';
+import type { ContentEntry } from '../download_manager/types';
 
 const TAG = '[contentPlaybackResolver]';
 
@@ -60,15 +62,6 @@ export async function resolveContentForPlayer<T extends Record<string, any>>(
       basePath = basePath.substring(0, basePath.lastIndexOf('/'));
     }
 
-    console.debug(TAG, 'resolving', {
-      contentId,
-      entryPath: entry.path,
-      basePath,
-      artifactUrl: resolved.artifactUrl,
-      streamingUrl: resolved.streamingUrl,
-      mimeType: resolved.mimeType,
-    });
-
     // Capacitor.convertFileSrc converts file:// → https://localhost/_capacitor_file_/...
     // This absolute URL is required for <video>, <img>, etc. to load local files
     // through the Capacitor webview's asset handler.
@@ -115,6 +108,14 @@ export async function resolveContentForPlayer<T extends Record<string, any>>(
     if (String(resolved.mimeType).startsWith('video/')) {
       // Video player: set streamingUrl to directory so player appends artifactUrl
       resolved.streamingUrl = toWebviewUrl(basePath);
+
+      // Prefer the authoritative LOCAL transcript paths over whatever
+      // `metadata.transcripts` the caller supplied - see resolveLocalTranscripts
+      // for why this override is necessary.
+      const localTranscripts = resolveLocalTranscripts(entry);
+      if (localTranscripts) {
+        resolved.transcripts = localTranscripts;
+      }
     } else if (isH5pOrHtml || isScorm) {
       // H5P/HTML: The renderer sets globalConfig.basepath = streamingUrl and the
       // htmlrenderer plugin uses basepath + "/index.html" as the iframe src.
@@ -163,13 +164,6 @@ export async function resolveContentForPlayer<T extends Record<string, any>>(
     resolved.basePath = toWebviewUrl(basePath);
     resolved.isAvailableLocally = true;
 
-    console.debug(TAG, 'resolved', {
-      contentId,
-      artifactUrl: resolved.artifactUrl,
-      streamingUrl: resolved.streamingUrl,
-      basePath: resolved.basePath,
-    });
-
     return resolved as T;
   } catch (error) {
     console.warn(
@@ -179,6 +173,46 @@ export async function resolveContentForPlayer<T extends Record<string, any>>(
     );
     // If resolution fails, return original metadata (online playback still works)
     return metadata;
+  }
+}
+
+/**
+ * Read the authoritative LOCAL transcript entries for a downloaded video, if any
+ * exist yet, in preference over whatever transcripts the caller's metadata came
+ * with. Callers build metadata from a live (or React-Query-cached) API read,
+ * which always reports transcripts pointing at the REMOTE captionsUrl - the
+ * backend has no concept of "local". Without this override, downloaded captions
+ * are only ever used when the API call itself is entirely unavailable, so
+ * playback silently falls back to remote URLs (which fail with no network) even
+ * when local caption files already exist on disk - and, if the WebView happened
+ * to cache that remote URL from an earlier online play, it can look like offline
+ * captions "work" when they're actually being served from HTTP cache, not the
+ * local files.
+ *
+ * Mirrors ContentService.readContentFromDb's local_data/server_data selection
+ * (local_data only trusted for visibility 'Default'; Parent-visibility content
+ * belongs to a collection and defers to server_data) so this doesn't silently
+ * diverge from the one other place in the codebase that picks between the two.
+ *
+ * Returns null (not the caller's transcripts) when no local transcripts exist
+ * yet or the stored JSON is malformed, so the caller can tell "use local" apart
+ * from "fall back to what I already had".
+ */
+function resolveLocalTranscripts(entry: ContentEntry): Record<string, unknown>[] | null {
+  try {
+    const raw = (entry.visibility === 'Default')
+      ? (entry.local_data || entry.server_data)
+      : entry.server_data;
+    const content = raw ? JSON.parse(raw) : null;
+    if (!content) return null;
+    if (entry.server_data !== raw) {
+      mergeTranscriptsFromServerData(content, entry.server_data);
+    }
+    return (Array.isArray(content.transcripts) && content.transcripts.length > 0)
+      ? content.transcripts
+      : null;
+  } catch {
+    return null;
   }
 }
 

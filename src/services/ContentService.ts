@@ -1,11 +1,48 @@
 import { getClient, ApiResponse } from '../lib/http-client';
 import { buildOfflineResponse } from '../lib/http-client/offlineResponse';
-import type { ContentSearchRequest, ContentSearchResponse } from '../types/contentTypes';
+import type { ContentSearchRequest, ContentSearchResponse, RawTranscript, PlayerTranscript } from '../types/contentTypes';
 import { contentDbService } from './db/ContentDbService';
 import { networkService } from './network/networkService';
 
+// Maps the raw enrichment.transcripts shape (artifactUrl = transcript.json,
+// captionsUrl = the actual VTT) to what sunbird-video-player's Transcript
+// interface expects - artifactUrl must be the VTT. wordByWordUrl is set to
+// the same VTT for every language: the overlay's accumulation logic handles
+// both word-level and sentence-level VTTs correctly on its own (a full cue is
+// never truncated, only additional cues appended to a non-empty line are
+// capped), so there's no need to know a given language's granularity here.
+function mapRawTranscripts(raw: RawTranscript[] | undefined): PlayerTranscript[] {
+  return (raw || [])
+    .filter((entry): entry is RawTranscript & { captionsUrl: string } =>
+      !!entry.captionsUrl && entry.status === 'Live')
+    .map((entry) => ({
+      language: entry.language || (entry.languageCode || 'Unknown').toUpperCase(),
+      identifier: entry.code,
+      languageCode: entry.languageCode || '',
+      artifactUrl: entry.captionsUrl,
+      wordByWordUrl: entry.captionsUrl,
+      sourceLanguage: !!entry.sourceLanguage,
+    }));
+}
+
+// local_data (the ECAR manifest item) never carries transcripts - they aren't
+// part of the download bundle. Any offline metadata path (ContentService's
+// own DB fallback, or a component-level fallback that reads contentDbService
+// directly when React Query pauses queries offline) should call this to pull
+// transcripts back in from server_data, which does get them via a prior
+// online enrich=all read.
+export function mergeTranscriptsFromServerData(content: any, serverDataRaw?: string | null): void {
+  if (!content || content.transcripts?.length || !serverDataRaw) return;
+  try {
+    const serverContent = JSON.parse(serverDataRaw);
+    if (serverContent.transcripts?.length) {
+      content.transcripts = serverContent.transcripts;
+    }
+  } catch { /* ignore malformed server_data */ }
+}
+
 const DEFAULT_CONTENT_FIELDS = [
-  'transcripts', 'ageGroup', 'appIcon', 'artifactUrl', 'attributions', 'audience',
+  'ageGroup', 'appIcon', 'artifactUrl', 'attributions', 'audience',
   'author', 'badgeAssertions', 'body', 'channel', 'code', 'concepts', 'contentCredits',
   'contentType', 'contributors', 'copyright', 'copyrightYear', 'createdBy', 'createdOn',
   'creator', 'creators', 'description', 'displayScore', 'domain', 'editorState',
@@ -32,7 +69,18 @@ export class ContentService {
     }
   }
 
-  public async contentRead<T = any>(contentId: string, fields?: string[], mode?: string): Promise<ApiResponse<T>> {
+  // `enrichTranscripts` is opt-in and defaults to false - it adds ?enrich=all,
+  // which is what actually returns enrichment.transcripts ("transcripts" alone
+  // in `fields` is not a recognized raw field on this endpoint). Left off by
+  // default so every other contentRead caller (detail view, download, etc.)
+  // isn't paying for enrichment data it never uses - only the video player
+  // path opts in, and only for actual video content.
+  public async contentRead<T = any>(
+    contentId: string,
+    fields?: string[],
+    mode?: string,
+    enrichTranscripts = false
+  ): Promise<ApiResponse<T>> {
     if (!networkService.isConnected()) {
       return this.readContentFromDb<T>(contentId);
     }
@@ -42,11 +90,16 @@ export class ContentService {
       const params = new URLSearchParams();
       if (resolvedFields.length) params.set('fields', resolvedFields.join(','));
       if (mode) params.set('mode', mode);
+      if (enrichTranscripts) params.set('enrich', 'all');
       const queryString = params.toString() ? `?${params.toString()}` : '';
       const response = await getClient().get<T>(`/content/v1/read/${contentId}${queryString}`);
+      const content = (response.data as any)?.content;
+
+      if (enrichTranscripts && content) {
+        content.transcripts = mapRawTranscripts(content.enrichment?.transcripts);
+      }
 
       try {
-        const content = (response.data as any)?.content;
         if (content?.identifier) {
           // Only refresh server_data on rows that already exist (placed there by
           // the download/import pipeline). Never create new rows here — the content
@@ -84,6 +137,10 @@ export class ContentService {
       : entry.server_data;
 
     const content = raw ? JSON.parse(raw) : null;
+
+    if (entry.server_data !== raw) {
+      mergeTranscriptsFromServerData(content, entry.server_data);
+    }
 
     // URL resolution for offline playback is handled by contentPlaybackResolver
     // in ContentPlayerPage. Keep raw metadata here to avoid double resolution.
