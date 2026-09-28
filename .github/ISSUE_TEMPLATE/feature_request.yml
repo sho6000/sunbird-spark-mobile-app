@@ -1,0 +1,87 @@
+name: "\U0001F680 Feature request"
+description: Suggest a new capability or an improvement to an existing one
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The app is used by many adopters, often on low-end devices and poor connections,
+        so features that work within those constraints land more easily.
+
+        **Agree the approach here before writing significant code.**
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Before you start
+      options:
+        - label: I searched existing issues and discussions, and this isn't already suggested
+          required: true
+        - label: I've considered how this behaves offline, not only online
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part of the app?
+      options:
+        - Content download or storage
+        - Content playback (PDF, Video, ePub, QuML)
+        - Sign-in or account
+        - Telemetry or sync
+        - Language, translation or RTL layout
+        - Navigation or general UI
+        - Accessibility
+        - Build, tooling or developer experience
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the situation you're stuck in, not the solution you have in mind.
+      placeholder: When I ... I can't ... because ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: offline
+    attributes:
+      label: How should this behave offline?
+      description: If it needs a network, say what the user should see when there isn't one.
+    validations:
+      required: true
+
+  - type: textarea
+    id: who-benefits
+    attributes:
+      label: Who benefits from this?
+      description: Which adopters, and in what situations. If it's specific to one deployment, say so.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Workarounds you're using now, or apps that solved this well.
+
+  - type: dropdown
+    id: contributing
+    attributes:
+      label: Would you like to build this?
+      options:
+        - I'd like to build it myself
+        - I'd like guidance before trying
+        - I'm only suggesting it
+    validations:
+      required: true

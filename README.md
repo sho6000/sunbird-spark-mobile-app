@@ -1,4 +1,9 @@
 # Sunbird Spark Mobile App
+
+## Maintainer
+
+[@pallakartheekreddy](https://github.com/pallakartheekreddy)
+
 ## Tech Overview
 
 The Spark mobile app is built on **React + Ionic 8** with **Capacitor 8** as the native bridge. It runs natively on Android (minSdkVersion 26 / Android 8.0).

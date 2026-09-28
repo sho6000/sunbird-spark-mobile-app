@@ -1,0 +1,111 @@
+name: "\U0001F41E Bug report"
+description: Something in the app isn't working the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this.
+
+        **Please don't report security vulnerabilities here.** Use the
+        **Security → Report a vulnerability** tab instead.
+
+  - type: checkboxes
+    id: prechecks
+    attributes:
+      label: Before you start
+      options:
+        - label: I searched existing issues and this isn't already reported
+          required: true
+        - label: I've checked this isn't a setup problem — a missing or unfilled `gradle.properties` or `google-services.json` causes failures that look like app bugs
+          required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where is the problem?
+      options:
+        - Content download or storage
+        - Content playback (PDF, Video, ePub, QuML)
+        - Sign-in or account
+        - Telemetry or sync
+        - Language, translation or RTL layout
+        - Navigation or general UI
+        - Build or setup
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: connectivity
+    attributes:
+      label: Was the device online or offline?
+      description: This app is offline-first, so the answer usually narrows the cause straight away.
+      options:
+        - Online
+        - Offline
+        - Both — happens either way
+        - It happened while connectivity was changing
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what actually happened instead.
+      placeholder: I expected ... but instead ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Tap ...
+        3. See error
+    validations:
+      required: true
+
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: Pixel 6a, Android 14 — or Pixel 5 emulator, API 34
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App version or branch
+      placeholder: v1.1.1, or a debug build from <branch>
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "`adb logcat` output for crashes, or the browser console if you reproduced it with `npm run dev`."
+      render: shell
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recording
+      description: For UI problems, a screenshot usually explains it faster than words.
+
+  - type: dropdown
+    id: contributing
+    attributes:
+      label: Would you like to work on this?
+      options:
+        - I'd like to fix it myself
+        - I'd like guidance before trying
+        - I'm only reporting it
+    validations:
+      required: true
